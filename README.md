@@ -1,5 +1,8 @@
 # General
-script to deploy the checkmk agent on Ubuntu machines.
+A script to easily deploy the checkmk agent on Ubuntu machines.
+
+# Requirements
+- An existing installation of CheckMK
 
 # Information
 ## Changelog
