@@ -7,3 +7,6 @@
 # Screenshot(s)
 if everything works correctly it should look like this:
 ![screenshot01](../../screenshots/rsnapshot_screenshot01.png)
+
+# Changelog
+- initial release
