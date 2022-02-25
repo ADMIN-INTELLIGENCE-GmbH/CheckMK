@@ -39,60 +39,66 @@ CRITHOURS=$((CRIT * 60))
 WARNHOURS=$((WARN * 60))
 
 for I in `ls ${BACKUPPATH}`; do
-    # grep through every rsnapshot.log file
-    result=$(tail -n 1 ${BACKUPPATH}/$I/rsnapshot.log)
+    # check if file exists
+    if [[ -f "${BACKUPPATH}/$I/rsnapshot.log" ]]; then
 
-    # time calculations
-    TIME=`echo $result | awk '{ print $1 }'`
-    TIME=${TIME:1:-1}
-    TIMESTAMP=`date -d"${TIME}" +%s`
-    NOW=$(date +%s)
-    DELTA=$((NOW - $TIMESTAMP))
-    MINUTES=$(($DELTA / 60 %60))
-    HOURS=$((DELTA / 60 / 60 %60))
-    DAYS=$((DELTA / 60 / 60 / 24))
-    PASSEDTIME=`echo $DAYS"d-"$HOURS"h-"$MINUTES"m"`
+        # grep through every rsnapshot.log file
+        result=$(tail -n 1 ${BACKUPPATH}/$I/rsnapshot.log)
 
-    if [[ $result == *"completed successfully"* ]]; then
-        if [[ $DAYS -lt $WARN ]]; then
-            status=0
-            statustext="Last Backup has completed successfully, age $PASSEDTIME"
-        elif [[ $DAYS -ge $WARN ]] && [[ $DAYS -lt $CRIT ]]; then
-            status=1
-            statustext="Last Backup has completed successfully, but is too old with $PASSEDTIME"
-        elif [[ $DAYS -lt $CRIT ]]; then
-            status=2
-            statustext="Last Backup has completed successfully, but is way too old with $PASSEDTIME"
+        # time calculations
+        TIME=`echo $result | awk '{ print $1 }'`
+        TIME=${TIME:1:-1}
+        TIMESTAMP=`date -d"${TIME}" +%s`
+        NOW=$(date +%s)
+        DELTA=$((NOW - $TIMESTAMP))
+        MINUTES=$(($DELTA / 60 %60))
+        HOURS=$((DELTA / 60 / 60 %60))
+        DAYS=$((DELTA / 60 / 60 / 24))
+        PASSEDTIME=`echo $DAYS"d-"$HOURS"h-"$MINUTES"m"`
+
+        if [[ $result == *"completed successfully"* ]]; then
+            if [[ $DAYS -lt $WARN ]]; then
+                status=0
+                statustext="Last Backup has completed successfully, age $PASSEDTIME"
+            elif [[ $DAYS -ge $WARN ]] && [[ $DAYS -lt $CRIT ]]; then
+                status=1
+                statustext="Last Backup has completed successfully, but is too old with $PASSEDTIME"
+            elif [[ $DAYS -lt $CRIT ]]; then
+                status=2
+                statustext="Last Backup has completed successfully, but is way too old with $PASSEDTIME"
+            else
+                status=3
+                statustext="Unknown error"
+            fi
+        elif [[ $result == *"completed, but with some warnings"* ]]; then
+            if [[ $DAYS -lt $WARN ]]; then
+                status=1
+                statustext="Last Backup completed with WARNINGS, age $PASSEDTIME"
+            elif [[ $DAYS -ge $WARN ]] && [[ $DAYS -lt $CRIT ]]; then
+                status=1
+                statustext="Last Backup completed with WARNINGS, age $PASSEDTIME"
+            elif [[ $DAYS -lt $CRIT ]]; then
+                status=2
+                statustext="Last Backup completed with WARNINGS, but is too old with $PASSEDTIME"
+            else
+                status=3
+                statustext="Unknown error"
+            fi
         else
-            status=3
-            statustext="Unknown error"
+            running=$(ps -ef | grep rsnapshot | grep $I)
+            if [[ ! -z $running ]]; then
+                status=1
+                statustext="RSnapshot currently running... please wait for result."
+            else
+                status=2
+                statustext="Last Backup has FAILED, age $PASSEDTIME"
+            fi
         fi
-    elif [[ $result == *"completed, but with some warnings"* ]]; then
-        if [[ $DAYS -lt $WARN ]]; then
-            status=1
-            statustext="Last Backup completed with WARNINGS, age $PASSEDTIME"
-        elif [[ $DAYS -ge $WARN ]] && [[ $DAYS -lt $CRIT ]]; then
-            status=1
-            statustext="Last Backup completed with WARNINGS, age $PASSEDTIME"
-        elif [[ $DAYS -lt $CRIT ]]; then
-            status=2
-            statustext="Last Backup completed with WARNINGS, but is too old with $PASSEDTIME"
-        else
-            status=3
-            statustext="Unknown error"
-        fi
+
+        # output (perfdata not working proberly and displaying the unit "s" instead of "d")
+        # echo "$status \"RSnapshot $I\" age=$HOURS;$WARNHOURS;$CRITHOURS $statustext"
+        echo "$status \"RSnapshot $I\" - $statustext"
     else
-        running=$(ps -ef | grep rsnapshot | grep $I)
-        if [[ ! -z $running ]]; then
-            status=1
-            statustext="RSnapshot currently running... please wait for result."
-        else
-            status=2
-            statustext="Last Backup has FAILED, age $PASSEDTIME"
-        fi
+        echo "2 \"RSnapshot $I\" - no rsnaphot.log found!"
     fi
-
-    # output (perfdata not working proberly and displaying the unit "s" instead of "d")
-    # echo "$status \"RSnapshot $I\" age=$HOURS;$WARNHOURS;$CRITHOURS $statustext"
-    echo "$status \"RSnapshot $I\" - $statustext"
 done
