@@ -1,11 +1,41 @@
 #!/bin/bash
+#
+############################################################
+#    _   ___  __  __ ___ _  _                              #
+#   /_\ |   \|  \/  |_ _| \| |                             #
+#  / _ \| |) | |\/| || || .` |                             #
+# /_/ \_\___/|_|  |_|___|_|\_|                             #
+#  ___ _  _ _____ ___ _    _    ___ ___ ___ _  _  ___ ___  #
+# |_ _| \| |_   _| __| |  | |  |_ _/ __| __| \| |/ __| __| #
+#  | || .` | | | | _|| |__| |__ | | (_ | _|| .` | (__| _|  #
+# |___|_|\_| |_| |___|____|____|___\___|___|_|\_|\___|___| #
+#   ___       _    _  _                                    #
+#  / __|_ __ | |__| || |                                   #
+# | (_ | '  \| '_ \ __ |                                   #
+#  \___|_|_|_|_.__/_||_|                                   #
+#                                                          #
+############################################################
+############################################################
+# "local check" script to check the public IP of the server
+#  against a list of SBL-servers
+############################################################
+# Author: Sascha Jelinek
+# Company: ADMIN INTELLIGENCE GmbH
+# Date: 2022-03-29
+# Web: www.admin-intelligence.de
+############################################################
 
 if [ $# -eq 0 ]; then
-    echo -n "Enter the IP Address of the server to check: "
+    #echo -n "Enter the IP Address of the server to check: "
     # get IP from STDIN
-    read IPADDR
+    #read IPADDR
+    IPADDR=`curl -s ifconfig.me`
 else
-    IPADDR=$1
+        if [[ $1 =~ ([0-9]{1,3}\.){3}([0-9]{1,3}) ]]; then
+                IPADDR=$1
+        else
+                IPADDR=`ping -c1 -t1 $1 2>&1 | tr -d '():' | awk '/^PING/{print $3}'`
+        fi
 fi
 
 # Move the IP around to get the reverse IP
@@ -31,26 +61,31 @@ fi
 
 # build reverse IP
 REVIP="${IPOCTET4}.${IPOCTET3}.${IPOCTET2}.${IPOCTET1}"
-echo "Reverse IP: ${REVIP}"
+#echo "Reverse IP: ${REVIP}"
 
 # Blacklist list
-BLIST="cbl.abuseat.org
-dnsbl.sorbs.net
-bl.spamcop.net
-zen.spamhaus.org
-spam.dnsbl.sorbs.net
-spamguard.leadmon.net
-dnsbl.justspam.org
-relays.mail-abuse.org
-bl.emailbasura.org
-"
+BLIST=`curl -s https://raw.githubusercontent.com/ADMIN-INTELLIGENCE-GmbH/CheckMK/main/local_checks/blacklist/black.list`
 
+COUNT=0
+COUNTBL=0
+EXITCODE=0
+EXITTEXT=""
 # check every Server in the list
 for server in $BLIST; do
+        COUNT=$((COUNT+1))
     dig ${REVIP}.${server} >> /dev/null
     if [ $? = 0 ]; then
-        echo "The ${IPADDR} IS White Listed"
+            EXITCODE=0
     else
-        echo "The ${IPADDR} IS Black Listed"
+            EXITCODE=2
+            EXITTEXT+="IP ${IPADDR} is blacklisted on ${server}\n"
+            COUNTBL=$((COUNTBL+1))
     fi
 done
+
+if [[ $COUNTBL = 0 ]]; then
+        echo "0 \"Blacklist Check\" blacklist=${COUNTBL};;; IP not listet on ${COUNT} servers"
+else
+        echo "2 \"Blacklist Check\" blacklist=${COUNTBL};;; blacklisted on ${COUNTBL} of ${COUNT} servers\n${EXITTEXT}"
+fi
+
