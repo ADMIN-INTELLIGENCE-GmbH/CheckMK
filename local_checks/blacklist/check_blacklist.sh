@@ -21,21 +21,18 @@
 ############################################################
 # Author: Sascha Jelinek
 # Company: ADMIN INTELLIGENCE GmbH
-# Date: 2022-03-29
+# Date: 2022-03-30
 # Web: www.admin-intelligence.de
 ############################################################
 
 if [ $# -eq 0 ]; then
-    #echo -n "Enter the IP Address of the server to check: "
-    # get IP from STDIN
-    #read IPADDR
     IPADDR=`curl -s ifconfig.me`
 else
-        if [[ $1 =~ ([0-9]{1,3}\.){3}([0-9]{1,3}) ]]; then
-                IPADDR=$1
-        else
-                IPADDR=`ping -c1 -t1 $1 2>&1 | tr -d '():' | awk '/^PING/{print $3}'`
-        fi
+    if [[ $1 =~ ([0-9]{1,3}\.){3}([0-9]{1,3}) ]]; then
+        IPADDR=$1
+    else
+        IPADDR=`ping -c1 -t1 $1 2>&1 | tr -d '():' | awk '/^PING/{print $3}'`
+    fi
 fi
 
 # Move the IP around to get the reverse IP
@@ -61,7 +58,6 @@ fi
 
 # build reverse IP
 REVIP="${IPOCTET4}.${IPOCTET3}.${IPOCTET2}.${IPOCTET1}"
-#echo "Reverse IP: ${REVIP}"
 
 # Blacklist list
 BLIST=`curl -s https://raw.githubusercontent.com/ADMIN-INTELLIGENCE-GmbH/CheckMK/main/local_checks/blacklist/black.list`
@@ -75,17 +71,17 @@ for server in $BLIST; do
         COUNT=$((COUNT+1))
     dig ${REVIP}.${server} >> /dev/null
     if [ $? = 0 ]; then
-            EXITCODE=0
+        EXITCODE=0
     else
-            EXITCODE=2
-            EXITTEXT+="IP ${IPADDR} is blacklisted on ${server}\n"
-            COUNTBL=$((COUNTBL+1))
+        EXITCODE=2
+        EXITTEXT+="IP ${IPADDR} is blacklisted on ${server}\n"
+        COUNTBL=$((COUNTBL+1))
     fi
 done
 
 if [[ $COUNTBL = 0 ]]; then
-        echo "0 \"Blacklist Check\" blacklist=${COUNTBL};;; IP not listet on ${COUNT} servers"
+    echo "0 \"Blacklist Check\" blacklist=${COUNTBL};;; IP not listet on ${COUNT} servers"
 else
-        echo "2 \"Blacklist Check\" blacklist=${COUNTBL};;; blacklisted on ${COUNTBL} of ${COUNT} servers\n${EXITTEXT}"
+    echo "2 \"Blacklist Check\" blacklist=${COUNTBL};;; blacklisted on ${COUNTBL} of ${COUNT} servers\n${EXITTEXT}"
 fi
 
