@@ -34,6 +34,7 @@
 # v1.0.0 - added graphs
 #          changed warn/crit values to time
 # v1.0.1 - added locked snapshot detection
+# v1.1.0 - added pagination, as hetzner only allows a maximum of 50 entries per page
 
 # TODO
 
@@ -42,6 +43,9 @@
 # just copy the following line          #
 # apt -y install curl jq                #
 #########################################
+
+# remove temp files
+rm -f /tmp/Snapshots_* >/dev/null 2>&1
 
 # tresholds
 SNAP_NUM_WARN=1
@@ -66,14 +70,27 @@ for keylist in `cat /usr/lib/check_mk_agent/api_keys`; do
     CUSTOMER_NAME=(${CUSTOMER_NAME[@]} `echo $CUSTOMER`)
 done
 
+# actual time
 TIMENOW=$(date +%s)
 
 for apikeys in "${!API_KEYS[@]}"; do
+    SERVERPAGES=1
+    SNAPPAGES=1
+    unset SERVERID
+    unset SERVERNAME
+    touch /tmp/Snapshots_${API_KEYS[$apikeys]}
+    # get number of pages
+    SERVERPAGES=`curl -s -H "Authorization: Bearer ${API_KEYS[$apikeys]}" "https://api.hetzner.cloud/v1/servers" | jq '.meta.pagination.last_page'`
+    SNAPPAGES=`curl -s -H "Authorization: Bearer ${API_KEYS[$apikeys]}" "https://api.hetzner.cloud/v1/images" | jq '.meta.pagination.last_page'`
     # get all servers
-    SERVERID=(`curl -s -H "Authorization: Bearer ${API_KEYS[$apikeys]}" "https://api.hetzner.cloud/v1/servers?per_page=9999" | jq '.servers[].id'`)
-    SERVERNAME=(`curl -s -H "Authorization: Bearer ${API_KEYS[$apikeys]}" "https://api.hetzner.cloud/v1/servers?per_page=9999" | jq '.servers[].name'`)
+    for serverpage in `seq 1 $SERVERPAGES`; do
+        SERVERID=(${SERVERID[@]} `curl -s -H "Authorization: Bearer ${API_KEYS[$apikeys]}" "https://api.hetzner.cloud/v1/servers?page=${serverpage}" | jq '.servers[].id'`)
+        SERVERNAME=(${SERVERNAME[@]} `curl -s -H "Authorization: Bearer ${API_KEYS[$apikeys]}" "https://api.hetzner.cloud/v1/servers?page=${serverpage}" | jq '.servers[].name'`)
+    done
     # get all images (including snapshots)
-    curl -s -H "Authorization: Bearer ${API_KEYS[$apikeys]}" "https://api.hetzner.cloud/v1/images?per_page=9999" -o /tmp/Snapshots_${API_KEYS[$apikeys]}
+    for snappage in `seq 1 $SNAPPAGES`; do
+        curl -s -H "Authorization: Bearer ${API_KEYS[$apikeys]}" "https://api.hetzner.cloud/v1/images?page=${snappage}" >> /tmp/Snapshots_${API_KEYS[$apikeys]}
+    done
 
     for index in "${!SERVERID[@]}"; do
         # get ID of snapshot
@@ -132,7 +149,7 @@ for apikeys in "${!API_KEYS[@]}"; do
                 SNAPAGEOUT=", oldest snapshot is $OLDESTSNAP days old"
             fi
             SNAPCOSTSOUT=", est. total costs ${SNAP_COSTS_SUM}€"
-            SNAP_DETAIL=$SNAP_DETAIL"\nSnapshot Name: ${SNAP_DESC}${zlockedtext} - Size: $SNAP_SIZE GB - Age: $TIMEREADABLE - est. costs: ${SNAP_COSTS}€"
+            SNAP_DETAIL=$SNAP_DETAIL"\nSnapshot Name: ${SNAP_DESC}${lockedtext} - Size: $SNAP_SIZE GB - Age: $TIMEREADABLE - est. costs: ${SNAP_COSTS}€"
         done
 
         # count all snapshots
