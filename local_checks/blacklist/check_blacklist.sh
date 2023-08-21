@@ -26,7 +26,7 @@
 ############################################################
 
 if [ $# -eq 0 ]; then
-    IPADDR=`curl -s ifconfig.me`
+    IPADDR=`curl -s -4 ifconfig.me`
 else
     if [[ $1 =~ ([0-9]{1,3}\.){3}([0-9]{1,3}) ]]; then
         IPADDR=$1
