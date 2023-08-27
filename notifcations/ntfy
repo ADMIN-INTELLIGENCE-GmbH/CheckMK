@@ -1,0 +1,116 @@
+#!/bin/bash
+#
+############################################################
+#    _   ___  __  __ ___ _  _                              #
+#   /_\ |   \|  \/  |_ _| \| |                             #
+#  / _ \| |) | |\/| || || .` |                             #
+# /_/ \_\___/|_|  |_|___|_|\_|                             #
+#  ___ _  _ _____ ___ _    _    ___ ___ ___ _  _  ___ ___  #
+# |_ _| \| |_   _| __| |  | |  |_ _/ __| __| \| |/ __| __| #
+#  | || .` | | | | _|| |__| |__ | | (_ | _|| .` | (__| _|  #
+# |___|_|\_| |_| |___|____|____|___\___|___|_|\_|\___|___| #
+#   ___       _    _  _                                    #
+#  / __|_ __ | |__| || |                                   #
+# | (_ | '  \| '_ \ __ |                                   #
+#  \___|_|_|_|_.__/_||_|                                   #
+#                                                          #
+############################################################
+############################################################
+# Script to push notifications via ntfy.sh
+############################################################
+# Author: Sascha Jelinek
+# Company: ADMIN INTELLIGENCE GmbH
+# Date: 2023-08-27
+# Web: www.admin-intelligence.de
+############################################################
+
+# ntfy.sh Server - HTTPS is required
+if [ -z ${NOTIFY_PARAMETER_1} ]; then
+    echo "Server missing. Exiting" >&2
+    exit 2
+else
+    NTFYSERVER="${NOTIFY_PARAMETER_1}"
+fi
+
+# ntfy.sh channel Name
+if [ -z ${NOTIFY_PARAMETER_2} ]; then
+    echo "Cannel missing. Exiting" >&2
+    exit 2
+else
+    CHANNEL="${NOTIFY_PARAMETER_2}"
+fi
+
+# Checkmk URL
+if [ -z ${NOTIFY_PARAMETER_3} ]; then
+    echo "Checkmk URL missing. Exiting" >&2
+    exit 2
+else
+    CHECKMKURL="${NOTIFY_PARAMETER_3}"
+fi
+
+# username
+# if [ -z ${NOTIFY_PARAMETER_1} ]; then
+#     echo "Server missing. Exiting" >&2
+#     exit 2
+# else
+#     NTFYSERVER="${NOTIFY_PARAMETER_1}"
+# fi
+
+# password
+# if [ -z ${NOTIFY_PARAMETER_1} ]; then
+#     echo "Server missing. Exiting" >&2
+#     exit 2
+# else
+#     NTFYSERVER="${NOTIFY_PARAMETER_1}"
+# fi
+
+# Set an tag for the current state
+if [[ ${NOTIFY_WHAT} == "SERVICE" ]]; then
+        STATE="${NOTIFY_SERVICESHORTSTATE}"
+else
+        STATE="${NOTIFY_HOSTSHORTSTATE}"
+fi
+case "${STATE}" in
+    OK|UP)
+        PRIO=3
+        TAG="white_check_mark"
+        ;;
+    WARN)
+        PRIO=3
+        TAG="warning"
+        ;;
+    CRIT|DOWN)
+        PRIO=4
+        TAG="x"
+        ;;
+    UNKN)
+        PRIO=2
+        TAG="interrobang"
+        ;;
+esac
+
+# Build a message to send to ntfy.sh
+if [[ ${NOTIFY_WHAT} == "SERVICE" ]]; then
+    TITLE="${NOTIFY_SERVICEDESC}"
+    MESSAGE="${NOTIFY_WHAT} ${NOTIFY_NOTIFICATIONTYPE} on ${NOTIFY_HOSTNAME} (${NOTIFY_HOSTALIAS})
+    ${NOTIFY_SERVICEOUTPUT}
+    "
+    ACTION="${CHECKMKURL}/${NOTIFY_OMD_SITE}${NOTIFY_SERVICEURL}"
+else
+    TITLE="${NOTIFY_HOSTNAME} (${NOTIFY_HOSTALIAS})"
+    MESSAGE+="${NOTIFY_WHAT} ${NOTIFY_NOTIFICATIONTYPE}
+    ${NOTIFY_HOSTOUTPUT}
+    "
+    ACTION="${CHECKMKURL}/${NOTIFY_OMD_SITE}${NOTIFY_HOSTURL}"
+fi
+MESSAGE+="${NOTIFY_SHORTDATETIME} | Site: ${OMD_SITE}"
+
+# Send message to ntfy.sh
+curl -H "Title: ${TITLE}" -H "Priority: ${PRIO}" -H "Tags: ${TAG}" -H "Actions: view, Go to  Monitoring, ${ACTION}, clear=true;" -d "${MESSAGE}" https://${NTFYSERVER}/${CHANNEL}
+
+if [ $? -ne 0 ]; then
+        echo "Not able to send ntfy.sh message" >&2
+        exit 2
+else
+        exit 0
+fi
