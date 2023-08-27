@@ -6,7 +6,7 @@ The script is actual work in progress, but it is working fine as for now.
 
 # Installation
 
-Just copy the script to the following folder on your Checkmk server installation:
+Just copy the script to the following folder on your Checkmk server installation and set the executable flag:
 
 ~~~
 /opt/omd/sites/[sitename]/share/check_mk/notifications
