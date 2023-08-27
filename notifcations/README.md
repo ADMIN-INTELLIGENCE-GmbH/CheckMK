@@ -4,6 +4,8 @@ Since were are using ntfy.sh as our new push service and I couldn't find an appr
 
 The script is actual work in progress, but it is working fine as for now.
 
+<img src="image-2.png" width="800px">
+
 # Installation
 
 Just copy the script to the following folder on your Checkmk server installation and set the executable flag:
@@ -14,7 +16,7 @@ Just copy the script to the following folder on your Checkmk server installation
 
 Now you can select the notifiction type from your settings:
 
-<img src='image.png' width='500px'>
+<img src="image.png" width="500px">
 
 # Configuration
 
@@ -24,7 +26,7 @@ To configure the notification method, fill in the first 3 parameters with the fo
 2. Channel name created within your ntfy.sh server
 3. URL to your monitoring system (only the part before the first "/")
 
-![Alt text](image-1.png)
+<img src="image-1.png" width="1000px">
 
 # TODOs
 
