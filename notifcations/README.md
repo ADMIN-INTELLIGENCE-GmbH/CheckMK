@@ -2,9 +2,11 @@
 
 Since were are using ntfy.sh as our new push service and I couldn't find an appropriate script for I built one myself.
 
-The script is actual work in progress, but it is working fine as for now.
+It also has a link to the actual host or service so that you are able to jump directly to that host or service without opening the monitoring and search for the host or service.
 
 <img src="image-2.png" width="800px">
+
+The script is actual work in progress, but it is working fine as for now.
 
 # Installation
 
