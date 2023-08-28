@@ -49,21 +49,11 @@ else
     CHECKMKURL="${NOTIFY_PARAMETER_3}"
 fi
 
-# username
-# if [ -z ${NOTIFY_PARAMETER_1} ]; then
-#     echo "Server missing. Exiting" >&2
-#     exit 2
-# else
-#     NTFYSERVER="${NOTIFY_PARAMETER_1}"
-# fi
+# basic auth - username
+AUTHUSER="${NOTIFY_PARAMETER_4}"
 
-# password
-# if [ -z ${NOTIFY_PARAMETER_1} ]; then
-#     echo "Server missing. Exiting" >&2
-#     exit 2
-# else
-#     NTFYSERVER="${NOTIFY_PARAMETER_1}"
-# fi
+# basic auth - passwor
+AUTHPASS="${NOTIFY_PARAMETER_5}"
 
 # Set an tag for the current state
 if [[ ${NOTIFY_WHAT} == "SERVICE" ]]; then
@@ -92,22 +82,28 @@ esac
 
 # Create a MESSAGE variable to send to ntfy.sh
 if [[ ${NOTIFY_WHAT} == "SERVICE" ]]; then
-    TITLE="${NOTIFY_SERVICEDESC}"
+    TITLE="${NOTIFY_SERVICEDESC} on ${NOTIFY_HOSTALIAS}"
     MESSAGE="${NOTIFY_WHAT} ${NOTIFY_NOTIFICATIONTYPE} on ${NOTIFY_HOSTALIAS} (${NOTIFY_HOST_ADDRESS_4})
     ${NOTIFY_SERVICEOUTPUT}
     "
+    ACTIONTEXT="Go to service"
     ACTION="${CHECKMKURL}/${NOTIFY_OMD_SITE}${NOTIFY_SERVICEURL}"
 else
     TITLE="${NOTIFY_HOSTALIAS} (${NOTIFY_HOST_ADDRESS_4})"
     MESSAGE+="${NOTIFY_WHAT} ${NOTIFY_NOTIFICATIONTYPE}
     ${NOTIFY_HOSTOUTPUT}
     "
+    ACTIONTEXT="Go to host"
     ACTION="${CHECKMKURL}/${NOTIFY_OMD_SITE}${NOTIFY_HOSTURL}"
 fi
 MESSAGE+="${NOTIFY_SHORTDATETIME} | Site: ${OMD_SITE}"
 
 # Send message to ntfy.sh
-curl -H "Title: ${TITLE}" -H "Priority: ${PRIO}" -H "Tags: ${TAG}" -H "Actions: view, Go to  Monitoring, ${ACTION}, clear=true;" -d "${MESSAGE}" https://${NTFYSERVER}/${CHANNEL}
+if [ -z ${AUTHUSER} ] && [ -z ${AUTHPASS} ]; then
+    curl -H "Title: ${TITLE}" -H "Priority: ${PRIO}" -H "Tags: ${TAG}" -H "Actions: view, ${ACTIONTEXT}, ${ACTION}, clear=true;" -d "${MESSAGE}" https://${NTFYSERVER}/${CHANNEL}
+else
+    curl -u "${AUTHUSER}:${AUTHPASS}" -H "Title: ${TITLE}" -H "Priority: ${PRIO}" -H "Tags: ${TAG}" -H "Actions: view, ${ACTIONTEXT}, ${ACTION}, clear=true;" -d "${MESSAGE}" https://${NTFYSERVER}/${CHANNEL}
+fi
 
 if [ $? -ne 0 ]; then
         echo "Not able to send ntfy.sh message" >&2
