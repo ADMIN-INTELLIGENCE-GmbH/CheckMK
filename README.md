@@ -1,7 +1,7 @@
 # General
 A script to easily deploy the checkmk agent on Ubuntu machines.
 
-Usefull for users of the RAW edition from CheckMK, but maybe also for users of the CRE edition.
+Usefull for users of the RAW edition from CheckMK.
 
 # Requirements
 - An existing installation of CheckMK
