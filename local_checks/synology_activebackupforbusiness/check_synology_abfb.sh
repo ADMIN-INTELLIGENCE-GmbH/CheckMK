@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # General
-SSHCOMMAND="/opt/omd/versions/2.0.0p18.cre/lib/nagios/plugins/check_by_ssh"
+SSHCOMMAND="/usr/lib/nagios/plugins/check_by_ssh"
 SSHKEY="/omd/sites/monitoring/.ssh/id_ed25519" # SSH-Key
 CHECKPATH="/volume1/checkmk_synology_backups.sh" # Check script on synology nas
 
