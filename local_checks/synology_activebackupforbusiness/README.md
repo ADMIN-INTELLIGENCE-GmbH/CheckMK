@@ -4,7 +4,7 @@ This script is split into two parts.
 ## Part 1 - Synology
 The file `checkmk_synology_backups.sh` should be places on the Synology nas directly unter `/volume1/`.
 
-The owner of the file should be root and it needs to be executable (`chmod +x check_synology_backup.sh`).
+The owner of the file should be root and it needs to be executable (`chmod +x checkmk_synology_backups.sh`).
 
 ## Part 2 - Checkmk
 On the Checkmk server which has been choosen to execute the check there are several things to be done:
