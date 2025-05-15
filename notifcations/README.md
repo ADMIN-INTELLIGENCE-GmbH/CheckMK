@@ -35,3 +35,4 @@ To configure the notification method, fill in the first 3 parameters with the fo
 # TODOs
 
 - [x] add "basic auth" for ntfy.sh server
+- [x] add "token auth" for ntfy.sh server
