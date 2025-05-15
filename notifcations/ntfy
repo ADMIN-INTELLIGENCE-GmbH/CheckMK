@@ -21,7 +21,7 @@
 ############################################################
 # Author: Sascha Jelinek
 # Company: ADMIN INTELLIGENCE GmbH
-# Date: 2023-08-27
+# Date: 2025-05-15
 # Web: www.admin-intelligence.de
 ############################################################
 
@@ -35,7 +35,7 @@ fi
 
 # ntfy.sh channel Name
 if [ -z ${NOTIFY_PARAMETER_2} ]; then
-    echo "Cannel missing. Exiting" >&2
+    echo "Channel missing. Exiting" >&2
     exit 2
 else
     CHANNEL="${NOTIFY_PARAMETER_2}"
@@ -49,10 +49,8 @@ else
     CHECKMKURL="${NOTIFY_PARAMETER_3}"
 fi
 
-# basic auth - username
+# Authentifizierung
 AUTHUSER="${NOTIFY_PARAMETER_4}"
-
-# basic auth - passwor
 AUTHPASS="${NOTIFY_PARAMETER_5}"
 
 # Set an tag for the current state
@@ -80,29 +78,63 @@ case "${STATE}" in
         ;;
 esac
 
+if [[ ${NOTIFY_NOTIFICATIONTYPE} == "ACKNOWLEDGEMENT" ]]; then
+    PRIO=2
+    TAG="ballot_box_with_check"
+fi
+
+if [[ ! -z ${NOTIFY_HOSTACKAUTHOR} || ! -z ${NOTIFY_SERVICEACKAUTHOR} ]]; then
+    ACKMESSAGE="**Acknowledged by ${NOTIFY_HOSTACKAUTHOR}${NOTIFY_SERVICEACKAUTHOR}**: ${NOTIFY_HOSTACKCOMMENT}${NOTIFY_SERVICEACKCOMMENT}\n"
+fi
+
 # Create a MESSAGE variable to send to ntfy.sh
 if [[ ${NOTIFY_WHAT} == "SERVICE" ]]; then
-    TITLE="${NOTIFY_SERVICEDESC} on ${NOTIFY_HOSTALIAS}"
-    MESSAGE="${NOTIFY_WHAT} ${NOTIFY_NOTIFICATIONTYPE} on ${NOTIFY_HOSTALIAS} (${NOTIFY_HOST_ADDRESS_4})
+    TITLE="${NOTIFY_HOST_KUNDE}: ${NOTIFY_SERVICEDESC} on ${NOTIFY_HOSTALIAS}"
+    MESSAGE="${NOTIFY_WHAT} ${NOTIFY_NOTIFICATIONTYPE} on ${NOTIFY_HOSTALIAS} (${NOTIFY_HOST_SERVERORT} - ${NOTIFY_HOST_ADDRESS_4})
     ${NOTIFY_SERVICEOUTPUT}
     "
     ACTIONTEXT="Go to service"
     ACTION="${CHECKMKURL}/${NOTIFY_OMD_SITE}${NOTIFY_SERVICEURL}"
 else
-    TITLE="${NOTIFY_HOSTALIAS} (${NOTIFY_HOST_ADDRESS_4})"
+    TITLE="${NOTIFY_HOST_KUNDE}: ${NOTIFY_HOSTALIAS} (${NOTIFY_HOST_SERVERORT} - ${NOTIFY_HOST_ADDRESS_4})"
     MESSAGE+="${NOTIFY_WHAT} ${NOTIFY_NOTIFICATIONTYPE}
     ${NOTIFY_HOSTOUTPUT}
     "
     ACTIONTEXT="Go to host"
     ACTION="${CHECKMKURL}/${NOTIFY_OMD_SITE}${NOTIFY_HOSTURL}"
 fi
+MESSAGE+="${ACKMESSAGE}"
 MESSAGE+="${NOTIFY_SHORTDATETIME} | Site: ${OMD_SITE}"
 
-# Send message to ntfy.sh
-if [ -z ${AUTHUSER} ] && [ -z ${AUTHPASS} ]; then
-    curl -H "Title: ${TITLE}" -H "Priority: ${PRIO}" -H "Tags: ${TAG}" -H "Actions: view, ${ACTIONTEXT}, ${ACTION}, clear=true;" -d "${MESSAGE}" https://${NTFYSERVER}/${CHANNEL}
+# Authentifizierungslogik
+if [[ "${AUTHUSER}" == tk_* ]]; then
+    # Token-Authentifizierung
+    curl -H "Title: ${TITLE}" \
+         -H "Priority: ${PRIO}" \
+         -H "Tags: ${TAG}" \
+         -H "Actions: view, ${ACTIONTEXT}, ${ACTION}, clear=true;" \
+         -H "Authorization: Bearer ${AUTHUSER}" \
+         -d "${MESSAGE}" \
+         https://${NTFYSERVER}/${CHANNEL}
 else
-    curl -u "${AUTHUSER}:${AUTHPASS}" -H "Title: ${TITLE}" -H "Priority: ${PRIO}" -H "Tags: ${TAG}" -H "Actions: view, ${ACTIONTEXT}, ${ACTION}, clear=true;" -d "${MESSAGE}" https://${NTFYSERVER}/${CHANNEL}
+    # Basic-Authentifizierung (falls Parameter 4+5 vorhanden)
+    if [ -n "${AUTHUSER}" ] && [ -n "${AUTHPASS}" ]; then
+        curl -u "${AUTHUSER}:${AUTHPASS}" \
+             -H "Title: ${TITLE}" \
+             -H "Priority: ${PRIO}" \
+             -H "Tags: ${TAG}" \
+             -H "Actions: view, ${ACTIONTEXT}, ${ACTION}, clear=true;" \
+             -d "${MESSAGE}" \
+             https://${NTFYSERVER}/${CHANNEL}
+    else
+        # Keine Authentifizierung
+        curl -H "Title: ${TITLE}" \
+             -H "Priority: ${PRIO}" \
+             -H "Tags: ${TAG}" \
+             -H "Actions: view, ${ACTIONTEXT}, ${ACTION}, clear=true;" \
+             -d "${MESSAGE}" \
+             https://${NTFYSERVER}/${CHANNEL}
+    fi
 fi
 
 if [ $? -ne 0 ]; then
