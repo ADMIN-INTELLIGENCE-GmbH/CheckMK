@@ -27,8 +27,8 @@ To configure the notification method, fill in the first 3 parameters with the fo
 1. Hostname of your ntfy.sh-Server. It needs to be accessible via HTTPS.
 2. Channel name created within your ntfy.sh server
 3. URL to your monitoring system (only the part before the first "/")
-4. *(optional)* username for basic auth
-5. *(optional)* password for basic auth, without special characters (I would suggest a passphrase, eg. "Cringing-Antibody-Unclothed0")
+4. *(optional)* username for basic auth OR Token for user
+5. *(optional)* password for basic auth, without special characters (I would suggest a passphrase, eg. "Cringing-Antibody-Unclothed0"), not needed if authenticated via token
 
 <img src="image-1.png" width="1000px">
 
