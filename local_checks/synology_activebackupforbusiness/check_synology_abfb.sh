@@ -12,7 +12,6 @@ USER="admin"
 TYPE="AB"
 WARN=30
 CRIT=60
-
 # Output for Piggyback-Check
 echo "<<<<${HOSTNAME}>>>>"
 echo "<<<local>>>"
