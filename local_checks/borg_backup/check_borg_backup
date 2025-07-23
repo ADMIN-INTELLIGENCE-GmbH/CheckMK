@@ -1,0 +1,235 @@
+#!/bin/bash
+############################################################
+#    _   ___  __  __ ___ _  _                              #
+#   /_\ |   \|  \/  |_ _| \| |                             #
+#  / _ \| |) | |\/| || || .` |                             #
+# /_/ \_\___/|_|  |_|___|_|\_|                             #
+#  ___ _  _ _____ ___ _    _    ___ ___ ___ _  _  ___ ___  #
+# |_ _| \| |_   _| __| |  | |  |_ _/ __| __| \| |/ __| __| #
+#  | || .` | | | | _|| |__| |__ | | (_ | _|| .` | (__| _|  #
+# |___|_|\_| |_| |___|____|____|___\___|___|_|\_|\___|___| #
+#   ___       _    _  _                                    #
+#  / __|_ __ | |__| || |                                   #
+# | (_ | '  \| '_ \ __ |                                   #
+#  \___|_|_|_|_.__/_||_|                                   #
+#                                                          #
+############################################################
+############################################################
+# Borg-Backup Check für Checkmk (Local Check)
+# Gibt Status zurück + Liste aller Backups mit Timestamps + Größeninfo
+############################################################
+# Author: Sascha Jelinek
+# Company: ADMIN INTELLIGENCE GmbH
+# Date: 2025-07-23
+# Version: 2.1.0
+# Web: www.admin-intelligence.de
+############################################################
+
+STATE_OK=0
+STATE_WARNING=1
+STATE_CRITICAL=2
+STATE_UNKNOWN=3
+
+debug(){   ([ "${verbose}" -gt 1 ] && echo "$*" >&2) || return 0; }
+verbose(){ ([ "${verbose}" -gt 0 ] && echo "$*" >&2) || return 0; }
+
+check_name() {
+    echo "BORG: ${HOST:-$(echo "$BORG_REPO" | grep -oP 'backup/\K[^/"]+')}"
+}
+
+error() {
+    msg="$*"
+
+    if [[ "$msg" =~ "Failed to create/acquire the lock" ]] && [[ "$msg" =~ "timeout" ]]; then
+        running=$(pgrep -f "borg create")
+        if [ -n "$running" ]; then
+            echo "${STATE_OK} \"$(check_name)\" - Backup läuft aktuell... Bitte warten. Solange läuft Fahrstuhlmusik :-)"
+            exit "${STATE_OK}"
+        else
+            echo "${STATE_CRITICAL} \"$(check_name)\" - Lock vorhanden, aber kein aktives Backup gefunden! (Fehler: $msg)"
+            exit "${STATE_CRITICAL}"
+        fi
+    fi
+
+    if [[ "$msg" =~ "Borg nicht installiert" ]] || \
+       [[ "$msg" =~ "passphrase supplied in BORG_PASSPHRASE" ]] || \
+       [[ "$msg" =~ "does not exist" ]]
+    then
+        echo "${STATE_WARNING} \"$(check_name)\" - BORG Warnung: $msg"
+        exit "${STATE_WARNING}"
+    else
+        echo "${STATE_UNKNOWN} \"$(check_name)\" - BORG Fehler: $msg"
+        exit "${STATE_UNKNOWN}"
+    fi
+}
+
+warn() {
+    echo "${STATE_WARNING} \"$(check_name)\" - BORG Warnung: nicht korrekt eingerichtet: $*"
+    exit "${STATE_WARNING}"
+}
+
+crit='3 days ago'
+warn='28 hours ago'
+verbose=0
+
+: "${BORG:=borg}"
+command -v "${BORG}" >/dev/null 2>/dev/null || error "Borg nicht installiert"
+
+: "${DATE:=date}"
+command -v "${DATE}" >/dev/null 2>/dev/null || error "Date nicht verfügbar"
+
+sec_warn="$(${DATE} --date="${warn}" '+%s')"
+sec_crit="$(${DATE} --date="${crit}" '+%s')"
+[ ${sec_crit} -gt ${sec_warn} ] && error "Warn muss neuer als Crit sein"
+
+read_backup_vars() {
+    BACKUP_SCRIPT_VARS="/sicherung/borg_backup.sh"
+    [ -f "$BACKUP_SCRIPT_VARS" ] || warn "Backup-Skript nicht gefunden"
+
+    unset BORG_REPO BORG_PASSPHRASE HOST SUB PHRASE
+
+    while IFS= read -r line; do
+        [[ "$line" =~ ^\s*# ]] && continue
+        [[ -z "$line" ]] && continue
+        for var in HOST SUB PHRASE BORG_REPO BORG_PASSPHRASE; do
+            if [[ "$line" =~ ^(export )?$var= ]]; then
+                value=$(echo "$line" | sed -E "s/^(export )?$var=['\"]?([^'\"]*)['\"]?/\2/")
+                eval "$var=\"$value\""
+            fi
+        done
+    done < "$BACKUP_SCRIPT_VARS"
+
+    [[ "$BORG_REPO" == *"\$HOST"* ]] && [ -n "$HOST" ] && BORG_REPO="${BORG_REPO//\$HOST/$HOST}"
+    [[ "$BORG_REPO" == *"\$SUB"* ]]  && [ -n "$SUB" ]  && BORG_REPO="${BORG_REPO//\$SUB/$SUB}"
+    [[ "$BORG_PASSPHRASE" == *"\$PHRASE"* ]] && [ -n "$PHRASE" ] && BORG_PASSPHRASE="${BORG_PASSPHRASE//\$PHRASE/$PHRASE}"
+    if [ -z "$BORG_PASSPHRASE" ] && [ -n "$PHRASE" ]; then
+        BORG_PASSPHRASE="$PHRASE"
+    fi
+
+    [ -z "$BORG_REPO" ] && warn "BORG_REPO nicht gefunden"
+    [ -z "$BORG_PASSPHRASE" ] && warn "BORG_PASSPHRASE (oder PHRASE) nicht gefunden"
+    export BORG_REPO BORG_PASSPHRASE HOST SUB
+}
+
+read_backup_vars
+export BORG_REPO BORG_PASSPHRASE
+
+last="$(${BORG} list --sort timestamp --last 1 --format '{time}' 2>&1)"
+[ $? != 0 ] && error "Borg Liste fehlgeschlagen: ${last}"
+
+num="$(${BORG} list | wc -l)"
+[ -z "$last" ] && echo "2 \"$(check_name)\" - CRITICAL - Kein Archiv gefunden" && exit $STATE_CRITICAL
+
+sec_last="$(${DATE} --date="${last}" '+%s')"
+if [ "${sec_crit}" -gt "${sec_last}" ]; then
+    state="${STATE_CRITICAL}"
+elif [ "${sec_warn}" -gt "${sec_last}" ]; then
+    state="${STATE_WARNING}"
+else
+    state="${STATE_OK}"
+fi
+
+readable_last="$(${DATE} -d "${last}" '+%d.%m.%Y %H:%M')"
+
+# Größe des letzten Backups + Perfdaten
+
+size_info=""
+borg_info="$(${BORG} info --last 1 2>/dev/null)"
+
+# Byte-Umrechnung
+to_bytes() {
+    local num="$1"
+    local unit="$2"
+    num=$(echo "$num" | sed 's/,/./g')
+    unit=$(echo "$unit" | sed 's/[^A-Za-z]//g')
+    case "$unit" in
+        B)  factor=1 ;;
+        kB) factor=1000 ;;
+        MB) factor=1000000 ;;
+        GB) factor=1000000000 ;;
+        TB) factor=1000000000000 ;;
+        KiB) factor=1024 ;;
+        MiB) factor=$((1024**2)) ;;
+        GiB) factor=$((1024**3)) ;;
+        TiB) factor=$((1024**4)) ;;
+        *)  factor=1 ;;
+    esac
+    echo $(awk -v n="$num" -v f="$factor" 'BEGIN { printf "%.0f", n*f }')
+}
+
+this_original_bytes=""
+this_compressed_bytes=""
+this_deduplicated_bytes=""
+all_original_bytes=""
+all_compressed_bytes=""
+all_deduplicated_bytes=""
+
+if [ $? -eq 0 ]; then
+    this_line=$(echo "$borg_info" | grep "^This archive:")
+    all_line=$(echo "$borg_info" | grep "^All archives:")
+
+    if [ -n "$this_line" ]; then
+        this_original_val=$(echo "$this_line" | awk '{print $(NF-5)}')
+        this_original_unit=$(echo "$this_line" | awk '{print $(NF-4)}')
+        this_compressed_val=$(echo "$this_line" | awk '{print $(NF-3)}')
+        this_compressed_unit=$(echo "$this_line" | awk '{print $(NF-2)}')
+        this_deduplicated_val=$(echo "$this_line" | awk '{print $(NF-1)}')
+        this_deduplicated_unit=$(echo "$this_line" | awk '{print $(NF)}')
+
+        this_original_bytes=$(to_bytes "$this_original_val" "$this_original_unit")
+        this_compressed_bytes=$(to_bytes "$this_compressed_val" "$this_compressed_unit")
+        this_deduplicated_bytes=$(to_bytes "$this_deduplicated_val" "$this_deduplicated_unit")
+
+        size_info=", size: ${this_deduplicated_val} ${this_deduplicated_unit} (dedup), ${this_original_val} ${this_original_unit} (original)"
+    fi
+
+    if [ -n "$all_line" ]; then
+        all_original_val=$(echo "$all_line" | awk '{print $(NF-5)}')
+        all_original_unit=$(echo "$all_line" | awk '{print $(NF-4)}')
+        all_compressed_val=$(echo "$all_line" | awk '{print $(NF-3)}')
+        all_compressed_unit=$(echo "$all_line" | awk '{print $(NF-2)}')
+        all_deduplicated_val=$(echo "$all_line" | awk '{print $(NF-1)}')
+        all_deduplicated_unit=$(echo "$all_line" | awk '{print $(NF)}')
+
+        all_original_bytes=$(to_bytes "$all_original_val" "$all_original_unit")
+        all_compressed_bytes=$(to_bytes "$all_compressed_val" "$all_compressed_unit")
+        all_deduplicated_bytes=$(to_bytes "$all_deduplicated_val" "$all_deduplicated_unit")
+    fi
+fi
+
+output_text="${num} backups found, last backup made on ${readable_last}${size_info}"
+
+# Checkmk Ausgabe
+output="${state} \"BORG: ${HOST:-$(echo $BORG_REPO | grep -oP 'backup/\K[^/\"]+')}\""
+output+=" number=${num};5:;3:"
+output+="|this_original=${this_original_bytes}B;;;;"
+output+="|this_compressed=${this_compressed_bytes}B;;;;"
+output+="|this_deduplicated=${this_deduplicated_bytes}B;;;;"
+output+="|all_original=${all_original_bytes}B;;;;"
+output+="|all_compressed=${all_compressed_bytes}B;;;;"
+output+="|all_deduplicated=${all_deduplicated_bytes}B;;;;"
+output+=" ${output_text}"
+output+="\nListe der Backups:"
+
+backup_lines=""
+
+backups_raw=$(BORG_REPO="$BORG_REPO" BORG_PASSPHRASE="$BORG_PASSPHRASE" ${BORG} list 2>/dev/null)
+
+if [ -n "$backups_raw" ]; then
+    while IFS= read -r line; do
+        archive_name=$(echo "$line" | awk '{print $1}')
+        archive_time=$(echo "$line" | sed -E 's/^[^[:space:]]+[[:space:]]+([^[]+).*/\1/' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        readable_time=$(${DATE} -d "${archive_time}" '+%d.%m.%Y %H:%M' 2>/dev/null)
+
+        if [ -n "$readable_time" ]; then
+            backup_lines+="\n - $archive_name (${readable_time})"
+        else
+            backup_lines+="\n - $archive_name (Datum unbekannt)"
+        fi
+    done <<< "$backups_raw"
+else
+    backup_lines+="\n (keine Backups gefunden oder Zugriff fehlgeschlagen)"
+fi
+
+# finale Ausgabe zusammenbauen
+echo "${output}${backup_lines}"
