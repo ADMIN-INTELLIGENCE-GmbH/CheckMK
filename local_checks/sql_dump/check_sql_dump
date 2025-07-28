@@ -21,7 +21,7 @@
 # Author: Sascha Jelinek
 # Company: ADMIN INTELLIGENCE GmbH
 # Date: 2025-07-24
-# Version: 1.4.3
+# Version: 1.4.4
 # Web: www.admin-intelligence.de
 ############################################################
 
@@ -38,8 +38,10 @@ MIN_MTIME=$((2 * 60))
 check_dump_file() {
     local file="$1"
     local base_name=$(basename "$file")
+    # Extrahiere Datumsteil im Format YYYYMMDD-HHmm
     local dump_date=$(echo "$base_name" | grep -oP '\d{8}-\d{4}' | sed 's/\(.\{4\}\)\(.\{2\}\)\(.\{2\}\)-\(.\{2\}\)\(.\{2\}\)/\1-\2-\3 \4:\5:00/')
     local dump_timestamp=$(date -d "$dump_date" +%s)
+    # Basisname ohne Datumsteil und Suffix ".sql"
     local check_name=$(echo "$base_name" | sed 's/-[0-9]\{8\}-[0-9]\{4\}\.sql$//')
 
     # Berechne die Differenz in Sekunden
@@ -50,23 +52,28 @@ check_dump_file() {
 
     if [ $diff_seconds -le $MAX_DIFF_SECONDS ]; then
         if tail -n 5 "$file" | grep -qE "Dump completed on|database dump complete|database cluster dump complete"; then
-            echo "0 \"SQL Dump ${check_name}\" - Der Dump $base_name ist aktuell und korrekt abgeschlossen. Größe: $file_size."
+            echo "0 \"SQL Dump ${check_name}\" - Dump $base_name is up-to-date and completed properly. Size: $file_size."
         else
-            echo "2 \"SQL Dump ${check_name}\" - Der Dump $base_name ist aktuell, aber nicht korrekt abgeschlossen. Größe: $file_size."
+            echo "2 \"SQL Dump ${check_name}\" - Dump $base_name is recent but not completed properly. Size: $file_size."
         fi
     else
-        echo "2 \"SQL Dump ${check_name}\" - Warnung: Der Dump $base_name ist älter als 1 Tag und 6 Stunden! Größe: $file_size."
+        echo "2 \"SQL Dump ${check_name}\" - Warning: Dump $base_name is older than 1 day and 6 hours! Size: $file_size."
     fi
 }
 
-# Finde die aktuellsten Dumps für jeden Typ
+# Finde die aktuellsten Dumps für jeden Typ, nur Dateien mit Namensschema [name]-YYYYMMDD-HHmm.sql
 declare -A latest_dumps
 while IFS= read -r -d '' file; do
     # Prüfe, ob die Datei seit mindestens 2 Minuten nicht mehr geändert wurde
     if [ $((CURRENT_TIMESTAMP - $(stat -c %Y "$file"))) -ge $MIN_MTIME ]; then
-        base_name=$(basename "$file" | sed 's/-[0-9]\{8\}-[0-9]\{4\}\.sql$//')
-        if [[ ! ${latest_dumps[$base_name]} ]] || [[ "$file" -nt "${latest_dumps[$base_name]}" ]]; then
-            latest_dumps[$base_name]="$file"
+        base_name=$(basename "$file")
+        # Prüfen, ob der Dateiname dem Muster entspricht
+        if [[ "$base_name" =~ ^(.+)-[0-9]{8}-[0-9]{4}\.sql$ ]]; then
+            # Extrahiere Basisname ohne Datum und .sql
+            base_key="${BASH_REMATCH[1]}"
+            if [[ ! ${latest_dumps[$base_key]} ]] || [[ "$file" -nt "${latest_dumps[$base_key]}" ]]; then
+                latest_dumps[$base_key]="$file"
+            fi
         fi
     fi
 done < <(find -L /sicherung -type f -name '*.sql' -print0)
@@ -78,5 +85,5 @@ done
 
 # Wenn keine Dumps gefunden wurden
 if [ ${#latest_dumps[@]} -eq 0 ]; then
-    echo "1 sql_dump - Keine SQL-Dump-Dateien in den vorhandenen Verzeichnissen gefunden."
+    echo "1 sql_dump - No SQL dumps with name pattern [name]-YYYYMMDD-HHmm.sql found."
 fi
