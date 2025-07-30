@@ -21,9 +21,12 @@
 # Author: Sascha Jelinek
 # Company: ADMIN INTELLIGENCE GmbH
 # Date: 2025-07-23
-# Version: 2.1.0
+# Version: 2.1.1
 # Web: www.admin-intelligence.de
 ############################################################
+# Changelog
+# v2.1.1
+# - added /backup to possible path to search for the script
 
 STATE_OK=0
 STATE_WARNING=1
@@ -83,8 +86,14 @@ sec_crit="$(${DATE} --date="${crit}" '+%s')"
 [ ${sec_crit} -gt ${sec_warn} ] && error "Warn muss neuer als Crit sein"
 
 read_backup_vars() {
-    BACKUP_SCRIPT_VARS="/sicherung/borg_backup.sh"
-    [ -f "$BACKUP_SCRIPT_VARS" ] || warn "Backup-Skript nicht gefunden"
+    # Versuche zuerst /sicherung, dann /backup zu prüfen
+    if [ -f "/sicherung/borg_backup.sh" ]; then
+        BACKUP_SCRIPT_VARS="/sicherung/borg_backup.sh"
+    elif [ -f "/backup/borg_backup.sh" ]; then
+        BACKUP_SCRIPT_VARS="/backup/borg_backup.sh"
+    else
+        warn "Backup-Skript borg_backup.sh nicht gefunden in /sicherung oder /backup"
+    fi
 
     unset BORG_REPO BORG_PASSPHRASE HOST SUB PHRASE
 
