@@ -15,18 +15,20 @@
 #                                                          #
 ############################################################
 ############################################################
-# Borg-Backup Check für Checkmk (Local Check)
-# Gibt Status zurück + Liste aller Backups mit Timestamps + Größeninfo
+# Borg backup check for Checkmk (Local Check)
+# Returns status + list of all backups with timestamps + size info
 ############################################################
 # Author: Sascha Jelinek
 # Company: ADMIN INTELLIGENCE GmbH
-# Date: 2025-07-23
-# Version: 2.1.1
+# Date: 2025-08-01
+# Version: 2.2.0
 # Web: www.admin-intelligence.de
 ############################################################
 # Changelog
 # v2.1.1
 # - added /backup to possible path to search for the script
+# v2.2.0
+# - added extra logfile parsing for failed directories
 
 STATE_OK=0
 STATE_WARNING=1
@@ -46,10 +48,10 @@ error() {
     if [[ "$msg" =~ "Failed to create/acquire the lock" ]] && [[ "$msg" =~ "timeout" ]]; then
         running=$(pgrep -f "borg create")
         if [ -n "$running" ]; then
-            echo "${STATE_OK} \"$(check_name)\" - Backup läuft aktuell... Bitte warten. Solange läuft Fahrstuhlmusik :-)"
+            echo "${STATE_OK} \"$(check_name)\" - Backup running... please stand by. Elevator music is playing until then :-)"
             exit "${STATE_OK}"
         else
-            echo "${STATE_CRITICAL} \"$(check_name)\" - Lock vorhanden, aber kein aktives Backup gefunden! (Fehler: $msg)"
+            echo "${STATE_CRITICAL} \"$(check_name)\" - lock exists, but no active backup found! (Error: $msg)"
             exit "${STATE_CRITICAL}"
         fi
     fi
@@ -58,16 +60,16 @@ error() {
        [[ "$msg" =~ "passphrase supplied in BORG_PASSPHRASE" ]] || \
        [[ "$msg" =~ "does not exist" ]]
     then
-        echo "${STATE_WARNING} \"$(check_name)\" - BORG Warnung: $msg"
+        echo "${STATE_WARNING} \"$(check_name)\" - BORG warning: $msg"
         exit "${STATE_WARNING}"
     else
-        echo "${STATE_UNKNOWN} \"$(check_name)\" - BORG Fehler: $msg"
+        echo "${STATE_UNKNOWN} \"$(check_name)\" - BORG error: $msg"
         exit "${STATE_UNKNOWN}"
     fi
 }
 
 warn() {
-    echo "${STATE_WARNING} \"$(check_name)\" - BORG Warnung: nicht korrekt eingerichtet: $*"
+    echo "${STATE_WARNING} \"$(check_name)\" - BORG warning: not set up correctly: $*"
     exit "${STATE_WARNING}"
 }
 
@@ -76,14 +78,52 @@ warn='28 hours ago'
 verbose=0
 
 : "${BORG:=borg}"
-command -v "${BORG}" >/dev/null 2>/dev/null || error "Borg nicht installiert"
+command -v "${BORG}" >/dev/null 2>/dev/null || error "Borg not installed"
 
 : "${DATE:=date}"
-command -v "${DATE}" >/dev/null 2>/dev/null || error "Date nicht verfügbar"
+command -v "${DATE}" >/dev/null 2>/dev/null || error "Date not available"
 
 sec_warn="$(${DATE} --date="${warn}" '+%s')"
 sec_crit="$(${DATE} --date="${crit}" '+%s')"
-[ ${sec_crit} -gt ${sec_warn} ] && error "Warn muss neuer als Crit sein"
+[ ${sec_crit} -gt ${sec_warn} ] && error "Warn must be newer than Crit"
+
+check_logfile_warnings() {
+    # Prüfe erst /sicherung, dann /backup auf das Logfile
+    local logfile=""
+    if [ -f "/sicherung/borg_backup.log" ]; then
+        logfile="/sicherung/borg_backup.log"
+    elif [ -f "/backup/borg_backup.log" ]; then
+        logfile="/backup/borg_backup.log"
+    else
+        return 0
+    fi
+
+    # Suche alle Zeilen mit dem stat: [Errno 2] Fehler
+    # Beispiel-Zeile: /blubber: stat: [Errno 2] No such file or directory: '/blubber'/BinaryOp/Pow.php
+    mapfile -t error_lines < <(grep -E "stat: \[Errno 2\] No such file or directory:" "$logfile")
+
+    if [ "${#error_lines[@]}" -eq 0 ]; then
+        # Keine Fehler gefunden
+        return 0
+    fi
+
+    # Extrahiere die Verzeichnisse, die betroffen sind
+    declare -A missing_dirs_map=()
+    for line in "${error_lines[@]}"; do
+        path=$(echo "$line" | sed -n "s/.*No such file or directory: '\([^']*\)'.*/\1/p")
+        if [ -n "$path" ]; then
+            missing_dirs_map["$path"]=1
+        else
+            dir=$(echo "$line" | sed -E "s|^([^:]+): stat:.*|\1|")
+            missing_dirs_map["$dir"]=1
+        fi
+    done
+
+    # Setze globale Variablen für Ausgabe
+    BORG_LOG_WARNING=1
+    BORG_LOG_WARNING_DIRS=$(printf "%s\n" "${!missing_dirs_map[@]}" | sort | uniq | tr '\n' ',' | sed 's/,$//')
+    return 0
+}
 
 read_backup_vars() {
     # Versuche zuerst /sicherung, dann /backup zu prüfen
@@ -92,7 +132,7 @@ read_backup_vars() {
     elif [ -f "/backup/borg_backup.sh" ]; then
         BACKUP_SCRIPT_VARS="/backup/borg_backup.sh"
     else
-        warn "Backup-Skript borg_backup.sh nicht gefunden in /sicherung oder /backup"
+        warn "Backup script borg_backup.sh not found in /sicherung or /backup"
     fi
 
     unset BORG_REPO BORG_PASSPHRASE HOST SUB PHRASE
@@ -115,8 +155,8 @@ read_backup_vars() {
         BORG_PASSPHRASE="$PHRASE"
     fi
 
-    [ -z "$BORG_REPO" ] && warn "BORG_REPO nicht gefunden"
-    [ -z "$BORG_PASSPHRASE" ] && warn "BORG_PASSPHRASE (oder PHRASE) nicht gefunden"
+    [ -z "$BORG_REPO" ] && warn "BORG_REPO not found"
+    [ -z "$BORG_PASSPHRASE" ] && warn "BORG_PASSPHRASE (or PHRASE) not found"
     export BORG_REPO BORG_PASSPHRASE HOST SUB
 }
 
@@ -124,10 +164,10 @@ read_backup_vars
 export BORG_REPO BORG_PASSPHRASE
 
 last="$(${BORG} list --sort timestamp --last 1 --format '{time}' 2>&1)"
-[ $? != 0 ] && error "Borg Liste fehlgeschlagen: ${last}"
+[ $? != 0 ] && error "Borg list failed: ${last}"
 
 num="$(${BORG} list | wc -l)"
-[ -z "$last" ] && echo "2 \"$(check_name)\" - CRITICAL - Kein Archiv gefunden" && exit $STATE_CRITICAL
+[ -z "$last" ] && echo "2 \"$(check_name)\" - CRITICAL - No archive found" && exit $STATE_CRITICAL
 
 sec_last="$(${DATE} --date="${last}" '+%s')"
 if [ "${sec_crit}" -gt "${sec_last}" ]; then
@@ -206,7 +246,23 @@ if [ $? -eq 0 ]; then
     fi
 fi
 
-output_text="${num} backups found, last backup made on ${readable_last}${size_info}"
+check_logfile_warnings
+
+# Wenn Log-Warnungen gefunden sind, setze Status auf Warn (höher als OK, niedriger als Crit)
+if [ "${BORG_LOG_WARNING:-0}" -ne 0 ]; then
+    state=$STATE_CRITICAL
+    output_text="Backup successful with errors (see details), ${num} backups found, last backup made on ${readable_last}${size_info}"
+    error_dirs_details="\nFailed directories:\n"
+    IFS=',' read -ra dirs <<< "$BORG_LOG_WARNING_DIRS"
+    for dir in "${dirs[@]}"; do
+        error_dirs_details+=" - $dir\n"
+    done
+else
+    output_text="${num} backups found, last backup made on ${readable_last}${size_info}"
+    error_dirs_details=""  # wichtig, keine Fehlermeldungen anfügen
+fi
+
+# output_text="${num} backups found, last backup made on ${readable_last}${size_info}"
 
 # Checkmk Ausgabe
 output="${state} \"BORG: ${HOST:-$(echo $BORG_REPO | grep -oP 'backup/\K[^/\"]+')}\""
@@ -218,7 +274,6 @@ output+="|all_original=${all_original_bytes}B;;;;"
 output+="|all_compressed=${all_compressed_bytes}B;;;;"
 output+="|all_deduplicated=${all_deduplicated_bytes}B;;;;"
 output+=" ${output_text}"
-output+="\nListe der Backups:"
 
 backup_lines=""
 
@@ -233,12 +288,12 @@ if [ -n "$backups_raw" ]; then
         if [ -n "$readable_time" ]; then
             backup_lines+="\n - $archive_name (${readable_time})"
         else
-            backup_lines+="\n - $archive_name (Datum unbekannt)"
+            backup_lines+="\n - $archive_name (date unknown)"
         fi
     done <<< "$backups_raw"
 else
-    backup_lines+="\n (keine Backups gefunden oder Zugriff fehlgeschlagen)"
+    backup_lines+="\n (no backups found or access failed)"
 fi
 
 # finale Ausgabe zusammenbauen
-echo "${output}${backup_lines}"
+echo "${output}${error_dirs_details}\nList of all backups:${backup_lines}"
