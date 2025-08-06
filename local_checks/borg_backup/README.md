@@ -71,3 +71,10 @@ Here you can see the following information:
   * "All backups" original size
   * "All backups" compressed size
   * "All backups" deduplicated size
+
+## Changelog
+### v2.1.1
+- added /backup to possible path to search for the script
+
+### v2.2.0
+- added extra logfile parsing for failed directories
