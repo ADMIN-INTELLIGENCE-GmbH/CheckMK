@@ -2,6 +2,7 @@
 
 # (c) Harald Weidner, 2021-11-03
 # License: MIT
+# Version: 1.0.0
 #
 # Checkmk local check
 # Checks wether a system reboot is needed, e.g. after a kernel update.
