@@ -1,0 +1,5 @@
+## Beschreibung
+
+Dieser Check ist dafür gedacht, "local checks", die auf github gehostet sind automatisch zu aktualisieren wenn sich die Versionsnummer ändert.
+
+Dazu werden die RAW URLs aller zu aktualisierenden Skripte in eine CSV eingetragen inkl. dem Namen.
