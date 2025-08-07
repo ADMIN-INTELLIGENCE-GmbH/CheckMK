@@ -20,15 +20,18 @@
 # Author: Sascha Jelinek
 # Company: ADMIN INTELLIGENCE GmbH
 # Date: 2025-08-06
-# Version: 1.0.0
+# Version: 1.0.1
 # Web: www.admin-intelligence.de
 ############################################################
+# Changelog
+# v1.0.1
+# - changed output to english
 
 CSV_URL="https://raw.githubusercontent.com/ADMIN-INTELLIGENCE-GmbH/CheckMK/main/local_checks_bakery.csv"
 AGENT_LOCAL="/usr/lib/check_mk_agent/local"
 
 TMP_CSV="/tmp/local_checks_bakery.csv.$$"
-curl -sfL "$CSV_URL" -o "$TMP_CSV" || { echo "2 local_checks_version - Fehler beim Abruf der CSV-Datei"; exit 2; }
+curl -sfL "$CSV_URL" -o "$TMP_CSV" || { echo "2 \"Check_MK local check bakery\" - Error while reading CSV file"; exit 2; }
 
 # Arrays zum Sammeln der Ausgabe
 declare -a DETAILS_LINES
@@ -70,7 +73,7 @@ do
 
     REMOTE_RAW=$(curl -sfL "$url")
     if [[ $? -ne 0 || -z "$REMOTE_RAW" ]]; then
-        DETAILS_LINES+=("$name: Fehler beim Abruf des Remote-Skripts")
+        DETAILS_LINES+=("$name: Error while loading remote scripts")
         ((errors++))
         continue
     fi
@@ -80,7 +83,7 @@ do
     LOCAL_VER=$(grep -E '^# Version:' "$SCRIPT_LOCAL" | head -n1 | sed -e 's/^# Version: *//' -e 's/[^0-9a-zA-Z.\-]//g')
 
     if [[ -z "$REMOTE_VER" ]]; then
-        DETAILS_LINES+=("$name: Remote Version nicht gefunden")
+        DETAILS_LINES+=("$name: Remote version not found")
         ((errors++))
         continue
     fi
@@ -89,7 +92,7 @@ do
         # Lokale Version nicht gefunden, lokal vorhandenes Skript - Update durchführen
         echo "$REMOTE_RAW" > "$SCRIPT_LOCAL"
         chmod 755 "$SCRIPT_LOCAL"
-        DETAILS_LINES+=("$name: Lokale Version nicht gefunden, Update auf $REMOTE_VER durchgeführt")
+        DETAILS_LINES+=("$name: Local version not found, update to $REMOTE_VER done")
         ((updates++))
         continue
     fi
@@ -102,16 +105,16 @@ do
         # Remote Version ist größer: Update durchführen
         echo "$REMOTE_RAW" > "$SCRIPT_LOCAL"
         chmod 755 "$SCRIPT_LOCAL"
-        DETAILS_LINES+=("$name: UPDATED von $LOCAL_VER auf $REMOTE_VER")
+        DETAILS_LINES+=("$name: UPDATED from $LOCAL_VER to $REMOTE_VER")
         ((updates++))
     elif [[ $res -eq 0 ]]; then
-        DETAILS_LINES+=("$name: aktuell ($LOCAL_VER)")
+        DETAILS_LINES+=("$name: actual ($LOCAL_VER)")
         ((up_to_date++))
     elif [[ $res -eq 2 ]]; then
-        DETAILS_LINES+=("$name: lokal neuer ($LOCAL_VER > $REMOTE_VER)")
+        DETAILS_LINES+=("$name: local is newer ($LOCAL_VER > $REMOTE_VER)")
         ((up_to_date++))
     else
-        DETAILS_LINES+=("$name: ungültige Version (remote='$REMOTE_VER', lokal='$LOCAL_VER')")
+        DETAILS_LINES+=("$name: invalid version (remote='$REMOTE_VER', local='$LOCAL_VER')")
         ((errors++))
     fi
 
@@ -140,6 +143,6 @@ done
 
 # Ausgabe Format für einen einzelnen Check mit Details als untergeordnete Zeilen:
 # Erst die Summenübersicht
-echo "$STATUS \"Check_MK local check bakery\" - $STATUS_TEXT: $total_checks Skripte überprüft, $updates Updates, $errors Fehler\nListe der Plugins:$DETAILLINES"
+echo "$STATUS \"Check_MK local check bakery\" - $total_checks scripts checked, $updates updates, $errors errors\nList of plugins: $DETAILLINES"
 
 exit $STATUS
