@@ -27,7 +27,7 @@
 # v1.0.1
 # - changed output to english
 
-CSV_URL="https://raw.githubusercontent.com/ADMIN-INTELLIGENCE-GmbH/CheckMK/main/local_checks_bakery/local_checks_bakery.csv"
+CSV_URL="https://raw.githubusercontent.com/ADMIN-INTELLIGENCE-GmbH/CheckMK/refs/heads/main/local_checks/local_checks_bakery/local_checks_bakery.csv"
 AGENT_LOCAL="/usr/lib/check_mk_agent/local"
 
 TMP_CSV="/tmp/local_checks_bakery.csv.$$"
