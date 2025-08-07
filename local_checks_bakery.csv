@@ -1,4 +1,5 @@
 name,url
+"Check_MK local checks bakery",https://raw.githubusercontent.com/ADMIN-INTELLIGENCE-GmbH/CheckMK/refs/heads/main/local_checks/local_checks_bakery/98_local_checks_bakery
 "BORG Backup",https://raw.githubusercontent.com/ADMIN-INTELLIGENCE-GmbH/CheckMK/refs/heads/main/local_checks/borg_backup/check_borg_backup
 "SQL Dump",https://raw.githubusercontent.com/ADMIN-INTELLIGENCE-GmbH/CheckMK/refs/heads/main/local_checks/sql_dump/check_sql_dump
 "Reboot required",https://raw.githubusercontent.com/ADMIN-INTELLIGENCE-GmbH/CheckMK/refs/heads/main/local_checks/reboot_required/reboot_required
