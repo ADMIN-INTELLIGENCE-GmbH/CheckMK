@@ -20,12 +20,14 @@
 # Author: Sascha Jelinek
 # Company: ADMIN INTELLIGENCE GmbH
 # Date: 2025-08-06
-# Version: 1.0.1
+# Version: 1.0.2
 # Web: www.admin-intelligence.de
 ############################################################
 # Changelog
 # v1.0.1
 # - changed output to english
+# v1.0.2
+# - changed wordings and CSV url
 
 CSV_URL="https://raw.githubusercontent.com/ADMIN-INTELLIGENCE-GmbH/CheckMK/refs/heads/main/local_checks/local_checks_bakery/local_checks_bakery.csv"
 AGENT_LOCAL="/usr/lib/check_mk_agent/local"
