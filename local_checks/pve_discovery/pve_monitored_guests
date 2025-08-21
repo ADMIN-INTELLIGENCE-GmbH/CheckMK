@@ -1,0 +1,113 @@
+#!/bin/bash
+
+ok=0
+warn=1
+crit=2
+
+# Funktion log falls nicht definiert (leicht abgewandelt)
+log() {
+    local msg="$1"
+    local timestamp
+    timestamp="$(date '+%Y-%m-%d %H:%M:%S')"
+    echo "[$timestamp] $msg" >> /tmp/checkmk_pve_discovery.log
+}
+
+# Checkmk Site ermitteln (erste echte Site aus omd sites)
+site=$(omd sites | awk '{print $1}')
+if [[ -z "$site" ]]; then
+    echo "$warn \"PVE monitored guests\" - No Checkmk site found"
+    exit 1
+fi
+
+# Livestatus socket Pfad
+livestatus_socket="/opt/omd/sites/$site/tmp/run/live"
+
+# Prefix für cmk Befehle als Site-User
+cmk_prefix="su - $site -c"
+
+# Dateien für PVE Server und Blacklist
+server_file="/etc/check_mk/pve_discovery_server.txt"
+blacklist_file="/etc/check_mk/pve_discovery_blacklist.txt"
+
+# Blacklist als associative array (host:vmid -> 1)
+declare -A blacklist_map=()
+if [[ -f "$blacklist_file" ]]; then
+    while IFS=: read -r host vmid; do
+        [[ -z "$host" || -z "$vmid" ]] && continue
+        blacklist_map["$host:$vmid"]=1
+    done < "$blacklist_file"
+fi
+
+# Livestatus Hosts mit Alias abrufen, Alias nach ";" getrennt
+# Format: name;alias
+declare -A alias_map=()
+while IFS= read -r line; do
+    name=${line%%;*}
+    alias=${line#*;}
+    [[ -z "$alias" ]] && alias="$name"
+    alias_map["$name"]="${alias,,}"  # lowercase für Vergleich
+done < <($cmk_prefix "echo -e 'GET hosts\nColumns: name alias\nOutputFormat: plain\n' | unixcat $livestatus_socket")
+
+not_monitored_vms=()
+total_vm_count=0
+
+# Hosts aus Datei in Array einlesen
+mapfile -t hosts < "$server_file"
+
+for pve_host in "${hosts[@]}"; do
+    # Leerzeichen entfernen
+    pve_host="$(echo -e "${pve_host}" | tr -d '[:space:]')"
+    [[ -z "$pve_host" ]] && continue
+
+    # log "Processing PVE host: $pve_host"
+
+    # SSH-Abfrage mit Timeout
+    qm_output=$(timeout 10s ssh -o BatchMode=yes -o ConnectTimeout=5 "$pve_host" qm list 2>/dev/null)
+    rc=$?
+    if [[ $rc -ne 0 || -z "$qm_output" ]]; then
+        # log "WARN: SSH connection or qm list failed for $pve_host with exit code $rc"
+        echo "$warn \"PVE monitored guests\" - SSH to $pve_host failed or no qm list output"
+        continue
+    fi
+
+    # VM-Daten zwischenspeichern, Header entfernen
+    mapfile -t vm_lines < <(echo "$qm_output" | tail -n +2)
+
+    for line in "${vm_lines[@]}"; do
+        [[ -z "$line" ]] && continue
+
+        vmid=$(awk '{print $1}' <<< "$line")
+        vmname=$(awk '{print $2}' <<< "$line")
+
+        if [[ ${blacklist_map["$pve_host:$vmid"]+_} ]]; then
+            continue
+        fi
+
+        ((total_vm_count++))
+
+        found=0
+        for mon_name in "${!alias_map[@]}"; do
+            if [[ "${alias_map[$mon_name]}" == "$vmname" ]]; then
+                found=1
+                break
+            fi
+        done
+
+        if (( found == 0 )); then
+            not_monitored_vms+=("$vmname")
+        fi
+    done
+
+done
+
+# Ergebnis ausgeben
+if (( ${#not_monitored_vms[@]} == 0 )); then
+    echo "$ok \"PVE monitored guests\" - All $total_vm_count VMs are monitored"
+else
+    count=${#not_monitored_vms[@]}
+    unmonitored="${not_monitored_vms[@]}"
+    [[ $count -gt 10 ]] && first10="$first10 ..."
+    echo "$crit \"PVE monitored guests\" - $count of $total_vm_count VMs not monitored --- Unmonitored VMs: $unmonitored"
+fi
+
+echo "<<<<>>>>"
