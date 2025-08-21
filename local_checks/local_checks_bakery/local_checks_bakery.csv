@@ -3,3 +3,4 @@ name,url
 "BORG Backup",https://raw.githubusercontent.com/ADMIN-INTELLIGENCE-GmbH/CheckMK/refs/heads/main/local_checks/borg_backup/check_borg_backup
 "SQL Dump",https://raw.githubusercontent.com/ADMIN-INTELLIGENCE-GmbH/CheckMK/refs/heads/main/local_checks/sql_dump/check_sql_dump
 "Reboot required",https://raw.githubusercontent.com/ADMIN-INTELLIGENCE-GmbH/CheckMK/refs/heads/main/local_checks/reboot_required/reboot_required
+"PVE monitored guests",https://raw.githubusercontent.com/ADMIN-INTELLIGENCE-GmbH/CheckMK/refs/heads/main/local_checks/pve_discovery/pve_monitored_guests
