@@ -1,4 +1,31 @@
 #!/bin/bash
+############################################################
+#    _   ___  __  __ ___ _  _                              #
+#   /_\ |   \|  \/  |_ _| \| |                             #
+#  / _ \| |) | |\/| || || .` |                             #
+# /_/ \_\___/|_|  |_|___|_|\_|                             #
+#  ___ _  _ _____ ___ _    _    ___ ___ ___ _  _  ___ ___  #
+# |_ _| \| |_   _| __| |  | |  |_ _/ __| __| \| |/ __| __| #
+#  | || .` | | | | _|| |__| |__ | | (_ | _|| .` | (__| _|  #
+# |___|_|\_| |_| |___|____|____|___\___|___|_|\_|\___|___| #
+#   ___       _    _  _                                    #
+#  / __|_ __ | |__| || |                                   #
+# | (_ | '  \| '_ \ __ |                                   #
+#  \___|_|_|_|_.__/_||_|                                   #
+#                                                          #
+############################################################
+############################################################
+# Script to check which VM or LXC is not monitored
+############################################################
+# Author: Sascha Jelinek
+# Company: ADMIN INTELLIGENCE GmbH
+# Date: 2025-08-21
+# Version: 1.0.1
+# Web: www.admin-intelligence.de
+############################################################
+# Changelog
+# v1.0.2
+# - removed low case translation of alias
 
 ok=0
 warn=1
@@ -45,7 +72,7 @@ while IFS= read -r line; do
     name=${line%%;*}
     alias=${line#*;}
     [[ -z "$alias" ]] && alias="$name"
-    alias_map["$name"]="${alias,,}"  # lowercase für Vergleich
+    alias_map["$name"]="${alias}"  # lowercase für Vergleich
 done < <($cmk_prefix "echo -e 'GET hosts\nColumns: name alias\nOutputFormat: plain\n' | unixcat $livestatus_socket")
 
 not_monitored_vms=()
@@ -106,7 +133,6 @@ if (( ${#not_monitored_vms[@]} == 0 )); then
 else
     count=${#not_monitored_vms[@]}
     unmonitored="${not_monitored_vms[@]}"
-    [[ $count -gt 10 ]] && first10="$first10 ..."
     echo "$crit \"PVE monitored guests\" - $count of $total_vm_count VMs not monitored --- Unmonitored VMs: $unmonitored"
 fi
 
