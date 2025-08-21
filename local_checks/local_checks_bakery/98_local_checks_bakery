@@ -58,7 +58,7 @@ compare_versions() {
     fi
 }
 
-while IFS="," read -r name url
+while IFS="," read -r name url || [ -n "$name" ];
 do
     # Header überspringen
     if [[ "$name" == "name" ]]; then continue; fi
