@@ -20,12 +20,14 @@
 # Author: Sascha Jelinek
 # Company: ADMIN INTELLIGENCE GmbH
 # Date: 2025-08-21
-# Version: 1.0.1
+# Version: 1.0.2
 # Web: www.admin-intelligence.de
 ############################################################
 # Changelog
 # v1.0.1
 # - removed low case translation of alias
+# v1.0.2
+# - addded VM-ID to the output
 
 ok=0
 warn=1
@@ -121,7 +123,7 @@ for pve_host in "${hosts[@]}"; do
         done
 
         if (( found == 0 )); then
-            not_monitored_vms+=("$vmname")
+            not_monitored_vms+=("$vmname ($vmid),")
         fi
     done
 
