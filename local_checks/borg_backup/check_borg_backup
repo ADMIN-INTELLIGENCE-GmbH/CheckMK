@@ -21,7 +21,7 @@
 # Author: Sascha Jelinek
 # Company: ADMIN INTELLIGENCE GmbH
 # Date: 2025-08-01
-# Version: 2.2.0
+# Version: 2.2.1
 # Web: www.admin-intelligence.de
 ############################################################
 # Changelog
@@ -29,18 +29,30 @@
 # - added /backup to possible path to search for the script
 # v2.2.0
 # - added extra logfile parsing for failed directories
+# v2.2.1
+# - added extra failsafe with check for a running "borg_backup.sh" process
 
 STATE_OK=0
 STATE_WARNING=1
 STATE_CRITICAL=2
 STATE_UNKNOWN=3
 
-debug(){   ([ "${verbose}" -gt 1 ] && echo "$*" >&2) || return 0; }
-verbose(){ ([ "${verbose}" -gt 0 ] && echo "$*" >&2) || return 0; }
-
 check_name() {
     echo "BORG: ${HOST:-$(echo "$BORG_REPO" | grep -oP 'backup/\K[^/"]+')}"
 }
+
+# --- NEUE FUNKTION: Prüfen ob borg_backup.sh läuft ---
+check_running_backup() {
+    if pgrep -f "borg_backup.sh" >/dev/null 2>&1; then
+        echo "${STATE_OK} \"$(check_name)\" - Backup running... please stand by. Elevator music is playing until then :-)"
+        exit "${STATE_OK}"
+    fi
+}
+
+check_running_backup
+
+debug(){   ([ "${verbose}" -gt 1 ] && echo "$*" >&2) || return 0; }
+verbose(){ ([ "${verbose}" -gt 0 ] && echo "$*" >&2) || return 0; }
 
 error() {
     msg="$*"
