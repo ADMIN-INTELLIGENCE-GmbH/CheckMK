@@ -34,7 +34,7 @@
 # - added check for borg compact
 # - extended check for compacting by adding time with tresholds
 # - changed sequence of variables
-# - changed line ending to LF
+# - changed output if borg is not installed
 
 STATE_OK=0
 STATE_WARNING=1
@@ -120,10 +120,16 @@ warn='28 hours ago'
 verbose=0
 
 : "${BORG:=borg}"
-command -v "${BORG}" >/dev/null 2>/dev/null || error "Borg not installed"
+if ! command -v "${BORG}" >/dev/null 2>&1; then
+    echo "${STATE_WARNING} \"$(check_name)\" - \"borg\" command not found / not installed"
+    exit "${STATE_WARNING}"
+fi
 
 : "${DATE:=date}"
-command -v "${DATE}" >/dev/null 2>/dev/null || error "Date not available"
+if ! command -v "${DATE}" >/dev/null 2>&1; then
+    echo "${STATE_WARNING} \"$(check_name)\" - \"date\" command not found"
+    exit "${STATE_WARNING}"
+fi
 
 sec_warn="$(${DATE} --date="${warn}" '+%s')"
 sec_crit="$(${DATE} --date="${crit}" '+%s')"
