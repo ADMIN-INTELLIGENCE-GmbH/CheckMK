@@ -21,7 +21,7 @@
 # Author: Sascha Jelinek
 # Company: ADMIN INTELLIGENCE GmbH
 # Date: 2025-08-25
-# Version: 2.2.4
+# Version: 2.3.0
 # Web: www.admin-intelligence.de
 ############################################################
 # Changelog
@@ -35,6 +35,8 @@
 # - extended check for compacting by adding time with tresholds
 # - changed sequence of variables
 # - changed output if borg is not installed
+# - v2.3.0
+# - bumped version to force updates
 
 STATE_OK=0
 STATE_WARNING=1
