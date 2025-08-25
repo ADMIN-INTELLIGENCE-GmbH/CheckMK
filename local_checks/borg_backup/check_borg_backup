@@ -21,7 +21,7 @@
 # Author: Sascha Jelinek
 # Company: ADMIN INTELLIGENCE GmbH
 # Date: 2025-08-01
-# Version: 2.2.2
+# Version: 2.2.3
 # Web: www.admin-intelligence.de
 ############################################################
 # Changelog
@@ -29,21 +29,24 @@
 # - added /backup to possible path to search for the script
 # v2.2.0
 # - added extra logfile parsing for failed directories
-# v2.2.1
+# v2.2.1 - 2.2.3
 # - added extra failsafe with check for a running "borg_backup.sh" process
-# v2.2.2
 # - added check for borg compact
+# - extended check for compacting by adding time with tresholds
+# - changed sequence of variables
 
 STATE_OK=0
 STATE_WARNING=1
 STATE_CRITICAL=2
 STATE_UNKNOWN=3
 
+debug(){   ([ "${verbose}" -gt 1 ] && echo "$*" >&2) || return 0; }
+verbose(){ ([ "${verbose}" -gt 0 ] && echo "$*" >&2) || return 0; }
+
 check_name() {
     echo "BORG: ${HOST:-$(echo "$BORG_REPO" | grep -oP 'backup/\K[^/"]+')}"
 }
 
-# --- NEUE FUNKTION: Prüfen ob borg_backup.sh läuft ---
 check_running_processes() {
     # Prüfen ob borg_backup.sh läuft
     if pgrep -f "borg_backup.sh" >/dev/null 2>&1; then
@@ -51,17 +54,34 @@ check_running_processes() {
         exit "${STATE_OK}"
     fi
 
-    # Prüfen ob /usr/bin/borg compact läuft
-    if pgrep -f "/usr/bin/borg compact" >/dev/null 2>&1; then
-        echo "${STATE_OK} \"$(check_name)\" - Repository compacting... please stand by. Elevator music is playing until then :-)"
-        exit "${STATE_OK}"
+    # Prüfen ob /usr/bin/borg compact läuft und Laufzeit ermitteln
+    compact_pid=$(pgrep -f "/usr/bin/borg compact" | head -n1)
+    if [ -n "$compact_pid" ]; then
+        # Prozess-Startzeit in Sekunden seit Epoch auslesen
+        start_epoch=$(ps -p "$compact_pid" -o lstart= | xargs -I{} date -d "{}" +%s)
+        now_epoch=$(date +%s)
+        runtime_sec=$(( now_epoch - start_epoch ))
+
+        # Laufzeit in Stunden und Minuten umrechnen
+        hours=$(( runtime_sec / 3600 ))
+        mins=$(( (runtime_sec % 3600) / 60 ))
+
+        # Schwellwert prüfen
+        if [ $hours -ge 8 ]; then
+            state=$STATE_CRITICAL
+            msg="CRITICAL - Repository compacting for ${hours}h ${mins}m, running too long, please check!"
+        elif [ $hours -ge 4 ]; then
+            state=$STATE_WARNING
+            msg="WARNING - Repository compacting for ${hours}h ${mins}m, still running... please stand by."
+        else
+            state=$STATE_OK
+            msg="Repository compacting for ${hours}h ${mins}m, please stand by. Elevator music is playing until then :-)"
+        fi
+
+        echo "${state} \"$(check_name)\" - $msg"
+        exit $state
     fi
 }
-
-check_running_processes
-
-debug(){   ([ "${verbose}" -gt 1 ] && echo "$*" >&2) || return 0; }
-verbose(){ ([ "${verbose}" -gt 0 ] && echo "$*" >&2) || return 0; }
 
 error() {
     msg="$*"
@@ -183,6 +203,8 @@ read_backup_vars() {
 
 read_backup_vars
 export BORG_REPO BORG_PASSPHRASE
+
+check_running_processes
 
 last="$(${BORG} list --sort timestamp --last 1 --format '{time}' 2>&1)"
 [ $? != 0 ] && error "Borg list failed: ${last}"
