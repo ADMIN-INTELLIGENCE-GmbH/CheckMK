@@ -20,8 +20,8 @@
 ############################################################
 # Author: Sascha Jelinek
 # Company: ADMIN INTELLIGENCE GmbH
-# Date: 2025-08-01
-# Version: 2.2.3
+# Date: 2025-08-25
+# Version: 2.2.4
 # Web: www.admin-intelligence.de
 ############################################################
 # Changelog
@@ -29,11 +29,12 @@
 # - added /backup to possible path to search for the script
 # v2.2.0
 # - added extra logfile parsing for failed directories
-# v2.2.1 - 2.2.3
+# v2.2.1 - 2.2.4
 # - added extra failsafe with check for a running "borg_backup.sh" process
 # - added check for borg compact
 # - extended check for compacting by adding time with tresholds
 # - changed sequence of variables
+# - changed line ending to LF
 
 STATE_OK=0
 STATE_WARNING=1
