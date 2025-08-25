@@ -19,8 +19,8 @@
 ############################################################
 # Author: Sascha Jelinek
 # Company: ADMIN INTELLIGENCE GmbH
-# Date: 2025-08-21
-# Version: 1.0.5
+# Date: 2025-08-25
+# Version: 1.0.6
 # Web: www.admin-intelligence.de
 ############################################################
 # Changelog
@@ -34,6 +34,8 @@
 # - use IP directly from server file without resolution
 # v1.0.5
 # - single summarized output for all hosts
+# v1.0.6
+# - total VMs count includes all hosts regardless of monitoring status
 ############################################################
 ok=0
 warn=1
@@ -79,6 +81,7 @@ mapfile -t hosts < "$server_file"
 
 declare -A not_monitored_vms_by_ip=()
 declare -A total_vm_count_by_ip=()
+total_all_vms=0
 
 for pve_host in "${hosts[@]}"; do
     pve_host="$(echo -e "${pve_host}" | tr -d '[:space:]')"
@@ -93,6 +96,8 @@ for pve_host in "${hosts[@]}"; do
 
     mapfile -t vm_lines < <(echo "$qm_output" | tail -n +2)
 
+    vm_count_this_host=0
+
     for line in "${vm_lines[@]}"; do
         [[ -z "$line" ]] && continue
 
@@ -102,8 +107,8 @@ for pve_host in "${hosts[@]}"; do
         if [[ ${blacklist_map["$pve_host:$vmid"]+_} ]]; then
             continue
         fi
-
-        ((total_vm_count_by_ip["$pve_host"]++))
+        
+        ((vm_count_this_host++))
 
         found=0
         for mon_name in "${!alias_map[@]}"; do
@@ -115,31 +120,26 @@ for pve_host in "${hosts[@]}"; do
 
         if (( found == 0 )); then
             # Escape Klammern in VM-Namen-Ausgabe für Bash String-Konkatenation
-            not_monitored_vms_by_ip["$pve_host"]+="${vmname} (${vmid}), "
+            not_monitored_vms_by_ip["$pve_host"]+="${vmname} \(${vmid}\), "
         fi
     done
+
+    total_vm_count_by_ip["$pve_host"]=$vm_count_this_host
+    ((total_all_vms+=vm_count_this_host))
 done
 
 if (( ${#not_monitored_vms_by_ip[@]} == 0 )); then
-    total=0
-    for count in "${total_vm_count_by_ip[@]}"; do
-        ((total+=count))
-    done
-    echo "$ok \"PVE monitored guests\" - All $total VMs are monitored"
+    echo "$ok \"PVE monitored guests\" - All $total_all_vms VMs are monitored"
 else
     total_unmonitored=0
-    total_vms=0
+
     unmonitored_list=""
 
     for ip in "${!not_monitored_vms_by_ip[@]}"; do
         count=$(echo -n "${not_monitored_vms_by_ip[$ip]}" | awk -F',' '{print NF-1}')
-        total=${total_vm_count_by_ip[$ip]:-0}
         ((total_unmonitored+=count))
-        ((total_vms+=total))
         unmonitored_list+="$ip: ${not_monitored_vms_by_ip[$ip]} "
     done
 
-    echo "$crit \"PVE monitored guests\" - $total_unmonitored of $total_vms VMs not monitored --- Unmonitored VMs by host IPs: $unmonitored_list"
+    echo "$crit \"PVE monitored guests\" - $total_unmonitored of $total_all_vms VMs not monitored --- Unmonitored VMs by host IPs: $unmonitored_list"
 fi
-
-echo "<<<<>>>>"
