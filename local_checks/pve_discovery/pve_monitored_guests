@@ -20,7 +20,7 @@
 # Author: Sascha Jelinek
 # Company: ADMIN INTELLIGENCE GmbH
 # Date: 2025-08-25
-# Version: 1.0.6
+# Version: 1.0.7
 # Web: www.admin-intelligence.de
 ############################################################
 # Changelog
@@ -36,6 +36,8 @@
 # - single summarized output for all hosts
 # v1.0.6
 # - total VMs count includes all hosts regardless of monitoring status
+# v1.0.7
+# - changed wordings
 ############################################################
 ok=0
 warn=1
@@ -120,7 +122,7 @@ for pve_host in "${hosts[@]}"; do
 
         if (( found == 0 )); then
             # Escape Klammern in VM-Namen-Ausgabe für Bash String-Konkatenation
-            not_monitored_vms_by_ip["$pve_host"]+="${vmname} \(${vmid}\), "
+            not_monitored_vms_by_ip["$pve_host"]+="${vmname} (${vmid}), "
         fi
     done
 
