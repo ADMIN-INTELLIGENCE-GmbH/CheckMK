@@ -21,7 +21,7 @@
 # Author: Sascha Jelinek
 # Company: ADMIN INTELLIGENCE GmbH
 # Date: 2025-08-01
-# Version: 2.2.1
+# Version: 2.2.2
 # Web: www.admin-intelligence.de
 ############################################################
 # Changelog
@@ -31,6 +31,8 @@
 # - added extra logfile parsing for failed directories
 # v2.2.1
 # - added extra failsafe with check for a running "borg_backup.sh" process
+# v2.2.2
+# - added check for borg compact
 
 STATE_OK=0
 STATE_WARNING=1
@@ -42,14 +44,21 @@ check_name() {
 }
 
 # --- NEUE FUNKTION: Prüfen ob borg_backup.sh läuft ---
-check_running_backup() {
+check_running_processes() {
+    # Prüfen ob borg_backup.sh läuft
     if pgrep -f "borg_backup.sh" >/dev/null 2>&1; then
         echo "${STATE_OK} \"$(check_name)\" - Backup running... please stand by. Elevator music is playing until then :-)"
         exit "${STATE_OK}"
     fi
+
+    # Prüfen ob /usr/bin/borg compact läuft
+    if pgrep -f "/usr/bin/borg compact" >/dev/null 2>&1; then
+        echo "${STATE_OK} \"$(check_name)\" - Repository compacting... please stand by. Elevator music is playing until then :-)"
+        exit "${STATE_OK}"
+    fi
 }
 
-check_running_backup
+check_running_processes
 
 debug(){   ([ "${verbose}" -gt 1 ] && echo "$*" >&2) || return 0; }
 verbose(){ ([ "${verbose}" -gt 0 ] && echo "$*" >&2) || return 0; }
