@@ -109,6 +109,18 @@ do
         chmod 755 "$SCRIPT_LOCAL"
         DETAILS_LINES+=("$name: updated from $LOCAL_VER to $REMOTE_VER")
         ((updates++))
+        if [[ "$name" == "pve_backup_config_check" ]]; then
+            CRON_SCRIPT_URL="https://raw.githubusercontent.com/ADMIN-INTELLIGENCE-GmbH/CheckMK/refs/heads/main/local_checks/pve_backup_config/check_pve_backup_config_cron.sh"
+            CRON_SCRIPT_LOCAL="/usr/lib/check_mk_agent/check_pve_backup_config_cron.sh"
+
+            if curl -sfL "$CRON_SCRIPT_URL" -o "$CRON_SCRIPT_LOCAL"; then
+                chmod 755 "$CRON_SCRIPT_LOCAL"
+                DETAILS_LINES+=("check_pve_backup_config_cron.sh: updated successfully")
+            else
+                DETAILS_LINES+=("check_pve_backup_config_cron.sh: failed to update")
+                ((errors++))
+            fi
+        fi
     elif [[ $res -eq 0 ]]; then
         DETAILS_LINES+=("$name: up to date ($LOCAL_VER)")
         ((up_to_date++))
