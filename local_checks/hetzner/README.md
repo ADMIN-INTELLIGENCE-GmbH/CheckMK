@@ -15,6 +15,14 @@ You need to place the file `api_keys` in the folder `/usr/lib/check_mk_agent`.
 
 A sample file is included in this folder.
 
+## Other prerequisites
+
+You need to install the following packages on the server:
+
+```
+apt -y install curl jq
+```
+
 # Instructions
 
 Depending on the number of projects and server this script can run a significant amount of time. So I recommend to let this script run in the background as a cronjob and then simply read a created textfile as a local check.

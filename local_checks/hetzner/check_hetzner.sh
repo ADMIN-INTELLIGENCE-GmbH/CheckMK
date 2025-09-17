@@ -37,8 +37,6 @@
 # v1.1.0 - added pagination, as hetzner only allows a maximum of 50 entries per page
 # v1.2.0 - changed calculation of snapshot age and size
 
-# TODO
-
 #########################################
 # you need to install the prerequisites #
 # just copy the following line          #
@@ -57,7 +55,7 @@ SNAP_COSTS=0.011 # €/GB/Monat
 SNAP_COSTS_HOUR=`echo "scale=6 ; $SNAP_COSTS / 720" | bc`
 MONTHSECONDS=2592000 # 1 month in seconds
 MONTHHOURS=720 # 1 month in hours
-EXCLUDED_PROJECTS=("Schatzschneider29cm") # ausgeschlossene Projekte die nicht eskalieren sollen, separiert durch "Leerzeichen", z.B. "Projekt 1" "Projekt 2" "usw."
+EXCLUDED_PROJECTS=() # ausgeschlossene Projekte die nicht eskalieren sollen, separiert durch "Leerzeichen", z.B. "Projekt 1" "Projekt 2" "usw."
 
 # read API keys from file
 for keylist in `cat /usr/lib/check_mk_agent/api_keys`; do
