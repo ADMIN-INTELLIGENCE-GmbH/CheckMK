@@ -54,4 +54,6 @@ This project is licensed under the GPL-3.0 License.
 
 - Author: Sascha Jelinek  
 - Company: ADMIN INTELLIGENCE GmbH  
-- Website: www.admin-intelligence.de
+- Website: https://www.admin-intelligence.de
+- Checkmk Website: https://www.admin-intelligence.de/checkmk
+- Blog: https://blog.admin-intelligence.de/category/checkmk/
