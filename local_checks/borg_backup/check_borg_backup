@@ -20,8 +20,8 @@
 ############################################################
 # Author: Sascha Jelinek
 # Company: ADMIN INTELLIGENCE GmbH
-# Date: 2025-08-25
-# Version: 2.3.0
+# Date: 2025-09-18
+# Version: 2.3.1
 # Web: www.admin-intelligence.de
 ############################################################
 # Changelog
@@ -29,14 +29,15 @@
 # - added /backup to possible path to search for the script
 # v2.2.0
 # - added extra logfile parsing for failed directories
-# v2.2.1 - 2.2.4
+# v2.2.1 - 2.2.3
 # - added extra failsafe with check for a running "borg_backup.sh" process
 # - added check for borg compact
 # - extended check for compacting by adding time with tresholds
 # - changed sequence of variables
-# - changed output if borg is not installed
-# - v2.3.0
+# v2.3.0
 # - bumped version to force updates
+# v2.3.1
+# - added a check for symbolic links within the backup paths
 
 STATE_OK=0
 STATE_WARNING=1
@@ -175,6 +176,55 @@ check_logfile_warnings() {
     return 0
 }
 
+extract_backup_paths() {
+    local script_file=""
+    if [ -f "/sicherung/borg_backup.sh" ]; then
+        script_file="/sicherung/borg_backup.sh"
+    elif [ -f "/backup/borg_backup.sh" ]; then
+        script_file="/backup/borg_backup.sh"
+    else
+        echo ""   # Kein Skript gefunden, leere Ausgabe
+        return 1
+    fi
+
+    local borg_command
+    borg_command=$(awk '/borg create/ {
+        printf "%s", $0
+        while (substr($0, length, 1)=="\\") {
+            getline
+            sub(/^[ \t]+/, "", $0)
+            printf " %s", $0
+        }
+        print ""
+    }' "$script_file")
+
+    # Extrahiere alle Pfade (Argumente, die mit / beginnen)
+    local paths
+    paths=$(awk '{
+        for(i=1; i<=NF; i++) {
+            if ($i ~ /^\//) printf "%s ", $i
+        }
+    }' <<< "$borg_command")
+
+    echo "$paths"
+}
+
+check_for_symlinks() {
+    local found_symlink=0
+    local symlink_details=""
+    for backup_path in $BACKUP_PATHS; do
+        if [ -L "$backup_path" ]; then
+            found_symlink=1
+            target=$(readlink -f "$backup_path")
+            symlink_details="${symlink_details}\n - ${backup_path} -> ${target}"
+        fi
+    done
+    if [ $found_symlink -eq 1 ]; then
+        echo "${STATE_CRITICAL} \"$(check_name)\" - Symbolic links found in backup paths, see details${symlink_details}"
+        exit $STATE_CRITICAL
+    fi
+}
+
 read_backup_vars() {
     # Versuche zuerst /sicherung, dann /backup zu prüfen
     if [ -f "/sicherung/borg_backup.sh" ]; then
@@ -212,7 +262,8 @@ read_backup_vars() {
 
 read_backup_vars
 export BORG_REPO BORG_PASSPHRASE
-
+BACKUP_PATHS=$(extract_backup_paths)
+check_for_symlinks
 check_running_processes
 
 last="$(${BORG} list --sort timestamp --last 1 --format '{time}' 2>&1)"
