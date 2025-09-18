@@ -78,3 +78,9 @@ Here you can see the following information:
 
 ### v2.2.0
 - added extra logfile parsing for failed directories
+
+### v2.3.0
+- bumped version to force updates
+
+### v2.3.1
+- added a check for symbolic links within the backup paths
