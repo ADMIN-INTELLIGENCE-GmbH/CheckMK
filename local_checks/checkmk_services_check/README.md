@@ -3,6 +3,8 @@
 This script monitors the **Checkmk agent services** on a list of remote servers via SSH and outputs results into **Checkmk piggyback files** for further monitoring.  
 It checks the status of critical systemd units, verifies socket activity, and detects long-running `check-mk-agent@` instances.
 
+**Note:** This local check must be run on the Checkmk server itself, not on the monitored hosts.
+
 ![checkmk_service_checks](../../screenshots/checkmk_service_check.png)
 
 ---
