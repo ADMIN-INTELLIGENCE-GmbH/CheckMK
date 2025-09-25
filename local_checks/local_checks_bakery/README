@@ -1,5 +1,81 @@
-## Beschreibung
+# Checkmk Local Checks Bakery – Automatic Updater Script
 
-Dieser Check ist dafür gedacht, "local checks", die auf github gehostet sind automatisch zu aktualisieren wenn sich die Versionsnummer ändert.
+This Bash script automates the version management of custom local check plugins for **Checkmk RAW** by comparing, updating, and reporting the status of scripts in your local agent directory.
 
-Dazu werden die RAW URLs aller zu aktualisierenden Skripte in eine CSV eingetragen inkl. dem Namen.
+# Features
+
+*   **Fetches latest plugin metadata and scripts** from the ADMIN INTELLIGENCE repository.
+*   **Compares local and remote versions:** Only updates if the remote version is newer.
+*   **Provides Checkmk-compatible output** with status and detailed plugin results.
+*   **Automatic download and installation** of missing or outdated plugins.
+*   **Integrated error handling and reporting** for troubleshooting.
+
+# Requirements
+
+*   Linux with Bash and standard tools: `curl`, `dpkg`, `grep`, `sed`
+*   Checkmk RAW agent installed on the host
+*   Write access to `/usr/lib/check_mk_agent/local/`
+*   Internet access to fetch CSV and plugin scripts from GitHub
+
+# Installation
+
+Copy `local_checks_bakery_update.sh` (or your script name) to the monitoring server.
+
+## Make the script executable:
+
+```
+chmod +x local_checks_bakery_update.sh
+```
+
+## Run manually or schedule via cron:
+
+```
+./local_checks_bakery_update.sh
+```
+
+## (Optional) Add to root’s crontab for periodic checking/updating:
+
+```
+10 * * * * /path/to/local_checks_bakery_update.sh >/dev/null 2>&1
+```
+
+# How it works
+
+*   Downloads a CSV of all available bakery plugins.
+*   For each entry:
+    *   Checks if the local script exists.
+    *   Loads the remote version and compares with local.
+    *   Updates the local copy if a newer version is found.
+    *   Reports the result (updated, up-to-date, error, or missing version).
+*   Special handling for plugins with additional dependencies (like `pve_backup_config_check` which triggers cron script update).
+
+# Output Format
+
+The script prints a Checkmk local check line with a status code, summary, and details:
+
+```
+<STATUS> "Check_MK local check bakery" - <N> scripts checked, <X> updates, <Y> errors
+List of plugins:
+ - plugin_a: updated from 1.0.0 to 1.0.1
+ - plugin_b: up to date (1.0.2)
+ - plugin_c: Error while loading remote scripts
+```
+
+*   `STATUS`: 0 (OK), 1 (WARN: updates performed), 2 (CRIT: errors occurred)
+*   This output is fully compatible with Checkmk’s service discovery and performance graphs.
+
+# Customization & Extensibility
+
+*   To add new plugins: update the bakery CSV file in your repository.
+*   Script logic can be extended for other remote sources, or customized local plugin directories.
+
+# Changelog
+
+*   **v1.0.1:** Output language changed to English
+*   **v1.0.2:** Adjusted wordings and CSV URL
+
+# Author
+
+*   Author: **Sascha Jelinek**
+*   Company: **ADMIN INTELLIGENCE GmbH**
+*   Website: [www.admin-intelligence.de/checkmk](https://www.admin-intelligence.de/checkmk)

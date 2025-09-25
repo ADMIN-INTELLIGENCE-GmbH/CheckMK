@@ -1,14 +1,27 @@
+# Checkmk Local Check for BorgBackup
+
+Monitor your **BorgBackup** effortlessly with this local check for Checkmk. The script provides detailed backup information, status, warnings, and performance data directly in your Checkmk interface.
+
 # Introduction
 
-With this local check for Checkmk you can monitor your BorgBackup with ease.
+This script is a comprehensive local check for integrating **BorgBackup** state and history into Checkmk monitoring. It provides:
+
+*   The number and timestamps of existing backups
+*   Deduplicated and original sizes
+*   Warnings for missing or failed backup paths
+*   Status of running backups and compaction processes
+*   Full list of individual backup archives with human-readable times
 
 # Prerequisites
 
-It relies on reading out a file named `/sicherung/borg_backup.sh` from us, which we use on neraly every server.
+*   Linux/Unix system with Bash
+*   BorgBackup (`borg`)
+*   Uses system tools: `ps`, `pgrep`, `awk`, `sed`, `grep`, `date`, and standard shell utilities
+*   Relies on a configuration script `/sicherung/borg_backup.sh` (or `/backup/borg_backup.sh`), as commonly used in deployments
 
-Within this script there is header where some variables are defined, it looks like this:
+Within your `borg_backup.sh` configuration, set variables as follows:
 
-```bash
+```
 #!/bin/bash
 
 #####################################
@@ -29,7 +42,7 @@ export BORG_PASSPHRASE="$PHRASE"
 
 # Installation
 
-Just copy the script `check_borg_backup` into the following folder on your Checkmk client:
+Copy the script `check_borg_backup` into the following directory on your Checkmk client:
 
 ```
 /usr/lib/check_mk_agent/local
@@ -43,44 +56,72 @@ chmod +x /usr/lib/check_mk_agent/local/check_borg_backup
 
 # Activate in Checkmk
 
-After you copied the script you need to restart your Checkmk agent service.
+After installation, **restart your Checkmk agent service**.  
+Then, rescan the server in Checkmk. The new "BorgBackup" service entry will appear in the monitoring view.
 
-After the restart you can rescan the server in Checkmk and the check should appear and looks like this:
+# Example Output in Checkmk
+
+The service entry includes:
+
+*   Summary with:
+    *   Number of backups
+    *   Date and time of the last backup
+    *   Deduplicated size and original size of the last backup
+*   A list of all backup archives with their name and time
+*   Performance graphs for key metrics
 
 ![BorgBackup overview](image-1.png)
 
 ![BorgBackup service view](image.png)
 
-Here you can see the following information:
-
 ## Summary
-* Number of backups
-* Date and time of the last backup
-* Deduped size of the last backup
-* Original size of the last backup
+
+*   Number of backups
+*   Date/time of last backup
+*   Deduplicated and original size of the last backup
 
 ## Details
-* A list of all backups in the repository with name and date
+
+*   List of all archives (name and date)
 
 ## Performance data
-* A graph for every metric
-  * Number of all backup
-  * "This backup" original size
-  * "This backup" compressed size
-  * "This backup" deduplicated size
-  * "All backups" original size
-  * "All backups" compressed size
-  * "All backups" deduplicated size
 
-## Changelog
-### v2.1.1
-- added /backup to possible path to search for the script
+*   Graph for each of:
+    *   Number of backups
+    *   "This backup" original, compressed, deduplicated size
+    *   "All backups" original, compressed, deduplicated size
 
-### v2.2.0
-- added extra logfile parsing for failed directories
+## Status Output
 
-### v2.3.0
-- bumped version to force updates
+*   OK: All recent backups present, no warnings
+*   Warning: Last backup older than 28 hours
+*   Critical: Last backup older than 3 days, symbolic link detected in backup source, or log shows critical error/missing directories
+*   Special output for currently running backup or compaction operation
 
-### v2.3.1
-- added a check for symbolic links within the backup paths
+# Logfile and Symbolic Links Checks
+
+*   Script detects errors in `/sicherung/borg_backup.log` or `/backup/borg_backup.log` about missing directories and reports them in detail
+*   Script checks for symbolic links in backup source paths and fails with **CRITICAL** if found
+
+# Troubleshooting
+
+*   If you see a warning about missing `borg_backup.sh`, ensure the configuration script is present in `/sicherung` or `/backup`
+*   Ensure all dependent programs and permissions are in place
+
+# Changelog
+
+*   **v2.1.1**: added `/backup` to possible script locations
+*   **v2.2.0**: logfile parsing for failed directories
+*   **v2.2.3**
+    *   failsafe check for running `borg_backup.sh` process
+    *   check for borg compact process
+    *   extended time-based checks for compaction
+    *   refactored variable handling
+*   **v2.3.0**: forced update (version bump)
+*   **v2.3.1**: check for symbolic links in backup paths
+
+# Author
+
+*   Author: **Sascha Jelinek**
+*   Company: **ADMIN INTELLIGENCE GmbH**
+*   Website: [www.admin-intelligence.de/checkmk](https://www.admin-intelligence.de/checkmk)

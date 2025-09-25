@@ -24,20 +24,6 @@
 # Version: 2.3.1
 # Web: www.admin-intelligence.de
 ############################################################
-# Changelog
-# v2.1.1
-# - added /backup to possible path to search for the script
-# v2.2.0
-# - added extra logfile parsing for failed directories
-# v2.2.1 - 2.2.3
-# - added extra failsafe with check for a running "borg_backup.sh" process
-# - added check for borg compact
-# - extended check for compacting by adding time with tresholds
-# - changed sequence of variables
-# v2.3.0
-# - bumped version to force updates
-# v2.3.1
-# - added a check for symbolic links within the backup paths
 
 STATE_OK=0
 STATE_WARNING=1

@@ -5,11 +5,9 @@ It checks the status of critical systemd units, verifies socket activity, and de
 
 **Note:** This local check must be run on the Checkmk server itself, not on the monitored hosts.
 
-![checkmk_service_checks](../../screenshots/checkmk_service_check.png)
+![checkmk_service_checks](checkmk_service_check.png)
 
----
-
-## Features
+# Features
 
 *   Verifies that required Checkmk services and timers are installed and running.
 *   Detects missing or inactive services with detailed error output.
@@ -18,20 +16,16 @@ It checks the status of critical systemd units, verifies socket activity, and de
 *   Detects long-running agent subprocesses (`check-mk-agent@...`) that exceed a configured runtime.
 *   Outputs results as a **Checkmk piggyback section** per monitored server.
 
----
-
-## Requirements
+# Requirements
 
 *   **Bash** (tested with GNU Bash 5+)
 *   `ssh` access to all target servers (root login or a user with sufficient permissions)
 *   `systemd` on all monitored servers
 *   Checkmk agent installed (`check-mk-agent`, `cmk-agent-ctl`, `cmk-update-agent`)
 
----
+# Installation
 
-## Installation
-
-### **Clone or copy the script** into the Checkmk agent directory:
+## **Clone or copy the script** into the Checkmk agent directory:
 
 ```
 sudo mkdir -p /usr/lib/check_mk_agent/local
@@ -39,7 +33,7 @@ sudo cp check_cmk_remote_services.sh /usr/lib/check_mk_agent/local/
 sudo chmod +x /usr/lib/check_mk_agent/local/check_cmk_remote_services.sh
 ```
 
-### **Create the server list file** with all target hostnames (one per line):
+## **Create the server list file** with all target hostnames (one per line):
 
 ```
 sudo tee /usr/lib/check_mk_agent/servers_for_cmk_servicechecks <<EOF
@@ -49,7 +43,7 @@ server3.example.com
 EOF
 ```
 
-### **Ensure SSH key authentication is configured** for the root (or monitoring) user:
+## **Ensure SSH key authentication is configured** for the root (or monitoring) user:
 
 ```
 ssh-copy-id root@server1.example.com
@@ -57,7 +51,7 @@ ssh-copy-id root@server1.example.com
 
 Repeat for all servers listed in the file.
 
-### **Test the script manually**:
+## **Test the script manually**:
 
 ```
 /usr/lib/check_mk_agent/local/check_cmk_remote_services.sh
@@ -74,9 +68,7 @@ You should see CheckMK-formatted output like:
 <<<<>>>>
 ```
 
----
-
-## How it Works
+# How it Works
 
 *   Reads server names from:  
     `/usr/lib/check_mk_agent/servers_for_cmk_servicechecks`
@@ -92,9 +84,7 @@ You should see CheckMK-formatted output like:
 *   Writes monitoring output into:  
     `/var/lib/check_mk_agent/spool/piggy_<hostname>.txt`
 
----
-
-## Integration in Checkmk
+# Integration in Checkmk
 
 Piggyback data will be automatically picked up by Checkmk as long as:
 
@@ -102,20 +92,16 @@ Piggyback data will be automatically picked up by Checkmk as long as:
 2.  The monitored hosts exist in Checkmk with names matching the server list entries.
 3.  You run a new service discovery in Checkmk after deploying.
 
----
-
-## Configuration Options
+# Configuration Options
 
 *   `**SOCKET_MAX_AGE**` (default `300` seconds):  
     Maximum allowed inactivity time for socket `Accepted` values before triggering a CRIT.
 *   `**SERVER_LIST_FILE**` (default `/usr/lib/check_mk_agent/servers_for_cmk_servicechecks`):  
     Path to the list of servers to monitor.
 
----
+# Example Output in Checkmk
 
-## Example Output in Checkmk
-
-### **OK state:**
+## **OK state:**
 
 ```
 Check_MK cmk_services        OK - 4 relevant services are running
@@ -123,10 +109,16 @@ Check_MK cmk_agent_socket    OK - Socket Accepted=57, Connected=4
 Check_MK cmk_agent_longrun   OK - no critical check-mk-agent@ instances
 ```
 
-### **Problem state:**
+## **Problem state:**
 
 ```
 Check_MK cmk_services        CRIT - 3 relevant services are running, NOT running: check-mk-agent.socket (inactive)
 Check_MK cmk_agent_socket    CRIT - check-mk-agent.socket Accepted value (12) has not increased for over 5 minutes
 Check_MK cmk_agent_longrun   CRIT - check-mk-agent@123.service has been running for 2d 5h 32m 10s
 ```
+
+# Author
+
+*   Author: **Sascha Jelinek**
+*   Company: **ADMIN INTELLIGENCE GmbH**
+*   Website: [www.admin-intelligence.de/checkmk](https://www.admin-intelligence.de/checkmk)

@@ -1,38 +1,76 @@
+# ntfy.sh Push Notification Script for Checkmk
+
+This script sends push notifications from Checkmk directly to your ntfy.sh server and links each alert to the specific host or service in monitoring. It supports channels, priorities, custom tags, authentication (basic and token), and rich messages.
+
 # General
 
-Since were are using ntfy.sh as our new push service and I couldn't find an appropriate script for I built one myself.
+Since ntfy.sh is our new push notification service and no suitable script was available, this solution was custom-built for robust Checkmk integration.  
+Each notification contains a direct link to the affected host or service for instant access in your monitoring interface.
 
-It also has a link to the actual host or service so that you are able to jump directly to that host or service without opening the monitoring and search for the host or service.
+![](image-2.png)
 
-<img src="image-2.png" width="800px">
-
-The script is actual work in progress, but it is working fine as for now.
+The script is actively maintained and works reliably as of now.
 
 # Installation
 
-Just copy the script to the following folder on your Checkmk server installation and set the executable flag:
+Copy the script to your Checkmk server notifications directory and make it executable:
 
-~~~
-$OMD_ROOT/local/share/check_mk/notifications
-~~~
+```
+$OMD_ROOT/local/share/check_mk/notifications/ntfy.sh
+chmod +x $OMD_ROOT/local/share/check_mk/notifications/ntfy.sh
+```
 
-Now you can select the notifiction type from your settings:
+After deployment, select **ntfy.sh** as your notification method in Checkmk’s notification settings:
 
-<img src="image.png" width="500px">
+![](image.png)
 
 # Configuration
 
-To configure the notification method, fill in the first 3 parameters with the following content:
+Set up the notification method by supplying the following parameters in the Checkmk GUI:
 
-1. Hostname of your ntfy.sh-Server. It needs to be accessible via HTTPS.
-2. Channel name created within your ntfy.sh server
-3. URL to your monitoring system (only the part before the first "/")
-4. *(optional)* username for basic auth OR Token for user
-5. *(optional)* password for basic auth, without special characters (I would suggest a passphrase, eg. "Cringing-Antibody-Unclothed0"), not needed if authenticated via token
+1.  **ntfy.sh Server:** Hostname of your ntfy.sh server, must use HTTPS
+2.  **Channel Name:** Channel created for sorting notifications within ntfy.sh
+3.  **Monitoring System URL:** The base URL (domain) of your Checkmk or monitoring system, e.g. `https://monitoring.company.com`
+4.  _(Optional)_ Username for basic authentication OR _Token_ (starts with `tk_`) for token auth
+5.  _(Optional)_ Password for basic authentication (if required)
 
-<img src="image-1.png" width="1000px">
+![](image-1.png)
 
-# TODOs
+# Features
 
-- [x] add "basic auth" for ntfy.sh server
-- [x] add "token auth" for ntfy.sh server
+*   Pushes formatted, tagged notifications via ntfy.sh
+*   Supports **priority, tag, and action links** (opens Checkmk host/service page directly)
+*   Handles **acknowledgements** and states with custom tags (OK, WARN, CRIT, UNKN)
+*   Authenticates via **basic auth or bearer tokens**
+*   Fail-safe exit status for Checkmk notification logic
+
+# Example Parameter Table
+
+| Parameter | Description | Example |
+| --- | --- | --- |
+| Server | ntfy.sh server (HTTPS) | ntfy.company.com |
+| Channel | Channel name for the notification | monitoring-alerts |
+| Monitoring URL | Base URL to Checkmk | [https://monitoring.company.com](https://monitoring.company.com/) |
+| Username/Token | Username for basic auth OR token (tk\_...) | tk\_xxx... OR notification\_user |
+| Password | Password for basic auth (if needed) | Cringing-Antibody-Unclothed0 |
+
+# Message Details
+
+*   Each notification contains:
+    *   State (OK, WARN, CRIT, UNKN, ACKNOWLEDGED)
+    *   Site and time info
+    *   Service or host details
+    *   Direct action link back to monitoring object for rapid troubleshooting
+
+# Troubleshooting
+
+*   Ensure `$OMD_ROOT` points to your Checkmk site root.
+*   Make sure the server parameter uses `https://`.
+*   Double-check channel names and authentication info.
+*   Monitor logs for push errors (exit status > 0).
+
+# Author
+
+*   Author: **Sascha Jelinek**
+*   Company: **ADMIN INTELLIGENCE GmbH**
+*   Website: [www.admin-intelligence.de/checkmk](https://www.admin-intelligence.de/checkmk)
