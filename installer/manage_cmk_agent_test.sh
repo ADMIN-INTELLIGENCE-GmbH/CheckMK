@@ -848,14 +848,14 @@ select_pve_host() {
         input_ip=$(whiptail --inputbox "Enter Proxmox VE Host IP or hostname:" 10 60 3>&1 1>&2 2>&3) || return 1
         if [[ -z "$input_ip" ]]; then
             whiptail --msgbox "No host entered. Please try again." 10 50
-            select_pve_host
+            return 2
         fi
         # Save newly input IP
         if ! grep -Fxq "$input_ip" "$SERVER_FILE"; then
             echo "$input_ip" >> "$SERVER_FILE"
             setup_ssh_key_single "$input_ip" || { show_error_box "SSH-Key-Setup failed for $input_ip"; return 1; }
             whiptail --msgbox "Host $input_ip added and SSH key copied. Please select it again from the list." 10 60
-            select_pve_host
+            return 2
         fi
         echo "$input_ip"
     fi
@@ -939,7 +939,7 @@ configure_pve_local_check() {
         local select_result=$?
         
         if [[ $select_result -eq 2 ]]; then
-            continue  # New host added, back to menu
+            select_pve_host  # New host added, back to menu
         elif [[ $select_result -ne 0 ]]; then
             return    # Other error or abort
         elif [[ -z "$pve_host" ]]; then
