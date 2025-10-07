@@ -31,7 +31,7 @@ This script automates the installation, configuration, and management of the Che
 
 ## Usage
 
-1. Run the script with appropriate permissions (e.g., `sudo ./install_checkmk_agent.sh`).
+1. Run the script with appropriate permissions (e.g., `sudo ./manage_checkmk_agent.sh`).
 2. Follow the interactive menus to:
    - Select installation mode (cloud, raw, manual).
    - Choose and configure desired monitoring plugins.
