@@ -708,6 +708,14 @@ configure_local_checks_menu() {
 # === 2.1.1 PVE Menues ===
 ############################################################
 
+# Function: Retrieve VM list by executing 'qm list' command on remote PVE host via SSH
+# - Uses SSH with batch mode, 5 second timeout, no strict host key checks
+# - Returns output of 'qm list' command or empty string on failure
+get_qm_list() {
+    local host="$1"
+    ssh -o BatchMode=yes -o ConnectTimeout=5 -o StrictHostKeyChecking=no "$host" qm list 2>/dev/null
+}
+
 # Function to setup a local ED25519 SSH key if not present,
 # and copy the public key to the specified PVE host.
 setup_ssh_key_single() {
@@ -927,6 +935,13 @@ configure_pve_local_check() {
         if [[ -z "$pve_host" ]]; then
             whiptail --msgbox "No Proxmox VE Host selected. Aborting." 10 50
             return
+        fi
+
+        # Test if ssh login with is possible, else abort
+        if ! ssh -o BatchMode=yes -o ConnectTimeout=5 "root@$pve_host" "echo ok" 2>/dev/null | grep -q ok; then
+            showerrorbox "Direct SSH login failed (Script-Check). Authorized Keys may not yet be loaded by sshd. Try waiting 5 seconds and retry or reboot target host."
+            log "ERROR" "Direct SSH login for Blacklist failed for $pve_host."
+            return 1
         fi
 
         # Manage VM blacklist for the selected host
@@ -2478,14 +2493,6 @@ setup_pve_backup_config_cronjob() {
         (crontab -l -u root 2>/dev/null; echo "$cron_job") | crontab -u root -
         log "[INFO] PVE backup config cronjob added to root crontab."
     fi
-}
-
-# Function: Retrieve VM list by executing 'qm list' command on remote PVE host via SSH
-# - Uses SSH with batch mode, 5 second timeout, no strict host key checks
-# - Returns output of 'qm list' command or empty string on failure
-get_qm_list() {
-    local host="$1"
-    ssh -o BatchMode=yes -o ConnectTimeout=5 -o StrictHostKeyChecking=no "$host" qm list 2>/dev/null
 }
 
 # Function: Check if any Checkmk site is active
