@@ -933,16 +933,17 @@ configure_pve_local_check() {
     while (( continue_config )); do
         # Prompt to select a Proxmox VE host
         local pve_host
-        pve_host=$(select_pve_host) || {
-            if [[ -z "$pve_host" ]]; then
-                whiptail --msgbox "No Proxmox VE Host selected. Aborting." 10 50
-                return
-            fi
-            if [[ $? -eq 2 ]]; then
-                continue
-            fi
+        pve_host=$(select_pve_host)
+        local select_result=$?
+        
+        if [[ $select_result -eq 2 ]]; then
+            continue  # New host added, back to menu
+        elif [[ $select_result -ne 0 ]]; then
+            return    # Other error or abort
+        elif [[ -z "$pve_host" ]]; then
+            whiptail --msgbox "No Proxmox VE Host selected. Aborting." 10 50
             return
-        }
+        fi
 
         # Manage VM blacklist for the selected host
         manage_vm_blacklist "$pve_host" || continue
