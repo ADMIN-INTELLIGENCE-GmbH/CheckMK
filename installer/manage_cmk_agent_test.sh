@@ -717,7 +717,30 @@ setup_ssh_key_single() {
         echo "No ED25519 SSH key found, generating ..."
         ssh-keygen -t ed25519 -N "" -f "$ssh_key"
         if [[ $? -ne 0 ]]; then
-            echo "Error generating SSH keys!"
+            show_error_box "Error generating SSH keys!"
+            log "ERROR" "Error generating SSH keys!"
+            exit 1
+        fi
+    fi
+
+    # Check if sshpass is installed; try silent install if missing
+    if ! command -v sshpass &>/dev/null; then
+        log "ERROR" "sshpass is not installed. Trying to install sshpass ..."
+        if command -v apt-get &>/dev/null; then
+            sudo apt-get update &>/dev/null
+            sudo apt-get install -y sshpass &>/dev/null
+        elif command -v yum &>/dev/null; then
+            sudo yum install -y sshpass &>/dev/null
+        else
+            show_error_box "Cannot install sshpass automatically (no apt-get or yum available)."
+            log "ERROR" "sshpass cannot be installed automatically. Aborting setup_ssh_key_single."
+            exit 1
+        fi
+
+        # Verify installation
+        if ! command -v sshpass &>/dev/null; then
+            show_error_box "Failed to install sshpass. Please install it manually and retry."
+            log "ERROR" "Failed to install sshpass. User intervention required."
             exit 1
         fi
     fi
@@ -728,9 +751,13 @@ setup_ssh_key_single() {
     # Exit if no hostname/IP is provided
     [[ -z "$pve_host" ]] && return
 
-    # Copy the public key to the target host using ssh-copy-id
+    # Prompt for root password for SSH key distribution
+    local root_pass
+    root_pass=$(whiptail --title "Root Password" --passwordbox "Enter SSH root password for $pve_host:" 10 60 3>&1 1>&2 2>&3) || return 1
+
+    # Copy the public key to the target host using sshpass+ssh-copy-id
     echo "Copying ED25519 SSH Key to $pve_host ..."
-    ssh-copy-id -i "$ssh_key.pub" "$pve_host"
+    sshpass -p "$root_pass" ssh-copy-id -i "$ssh_key.pub" "root@$pve_host"
 }
 
 # Function: Select a Proxmox VE host
