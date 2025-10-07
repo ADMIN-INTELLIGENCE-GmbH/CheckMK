@@ -804,6 +804,9 @@ select_pve_host() {
         mapfile -t server_ips < "$SERVER_FILE"
     fi
 
+    echo "DEBUG: SERVER_FILE content (vor Menü):"
+    cat "$SERVER_FILE" >&2
+
     if (( ${#server_ips[@]} > 0 )); then
         # Build a menu list with existing hosts plus an option to add a new one
         local menu_options=()
@@ -818,48 +821,69 @@ select_pve_host() {
         local choice
         choice=$(whiptail --title "Select Proxmox VE server" --menu \
             "Select a Proxmox VE host IP or choose to add a new one:" 15 60 6 \
-            "${menu_options[@]}" 3>&1 1>&2 2>&3) || return 1
+            "${menu_options[@]}" 3>&1 1>&2 2>&3) || { echo "DEBUG: Menu canceled"; return 1; }
+
+        echo "DEBUG: Menu choice: $choice"
 
         if [[ "$choice" == "$idx" ]]; then
             # Input box for new host IP/hostname
             local new_ip
-            new_ip=$(whiptail --inputbox "Enter new Proxmox VE Host IP or hostname:" 10 60 3>&1 1>&2 2>&3) || return 1
+            new_ip=$(whiptail --inputbox "Enter new Proxmox VE Host IP or hostname:" 10 60 3>&1 1>&2 2>&3) || { echo "DEBUG: New IP input canceled"; return 1; }
+            new_ip=$(echo "$new_ip" | xargs)
+            echo "DEBUG: User entered new IP: '$new_ip'"
             if [[ -z "$new_ip" ]]; then
                 whiptail --msgbox "No host entered. Please try again." 10 50
+                echo "DEBUG: No new IP entered."
                 return 2
             fi
-            # Save new IP if it doesn't already exist in the file
+
+            echo "DEBUG: SERVER_FILE before new_ip insert:"
+            cat "$SERVER_FILE" >&2
             if ! grep -Fxq "$new_ip" "$SERVER_FILE"; then
+                echo "DEBUG: $new_ip NOT FOUND in SERVER_FILE, will add and copy key."
                 echo "$new_ip" >> "$SERVER_FILE"
                 setup_ssh_key_single "$new_ip" || { show_error_box "SSH-Key-Setup failed for $new_ip"; return 1; }
                 whiptail --msgbox "Host $new_ip added and SSH key copied. Please select it again from the list." 10 60
+                echo "DEBUG: $new_ip added. Returning 2 (force menu reload)."
                 return 2
+            else
+                echo "DEBUG: $new_ip already in file."
             fi
             echo "$new_ip"
         else
-            # Return the selected existing host IP/hostname
             local idx_choice=$((choice-1))
+            echo "DEBUG: Selected existing host: '${server_ips[$idx_choice]}'"
             echo "${server_ips[$idx_choice]}"
         fi
 
     else
         # No stored hosts, prompt for IP/hostname input directly
         local input_ip
-        input_ip=$(whiptail --inputbox "Enter Proxmox VE Host IP or hostname:" 10 60 3>&1 1>&2 2>&3) || return 1
+        input_ip=$(whiptail --inputbox "Enter Proxmox VE Host IP or hostname:" 10 60 3>&1 1>&2 2>&3) || { echo "DEBUG: Input box canceled"; return 1; }
+        input_ip=$(echo "$input_ip" | xargs)
+        echo "DEBUG: User entered initial IP: '$input_ip'"
         if [[ -z "$input_ip" ]]; then
             whiptail --msgbox "No host entered. Please try again." 10 50
+            echo "DEBUG: No IP provided in direct input."
             return 2
         fi
-        # Save newly input IP
+
+        echo "DEBUG: SERVER_FILE before input_ip insert:"
+        cat "$SERVER_FILE" >&2
         if ! grep -Fxq "$input_ip" "$SERVER_FILE"; then
+            echo "DEBUG: $input_ip NOT FOUND in SERVER_FILE, will add and copy key."
             echo "$input_ip" >> "$SERVER_FILE"
             setup_ssh_key_single "$input_ip" || { show_error_box "SSH-Key-Setup failed for $input_ip"; return 1; }
             whiptail --msgbox "Host $input_ip added and SSH key copied. Please select it again from the list." 10 60
+            echo "DEBUG: $input_ip added. Returning 2 (force menu reload)."
             return 2
+        else
+            echo "DEBUG: $input_ip already in file."
         fi
         echo "$input_ip"
     fi
 }
+
 
 # Function: Manage the VM blacklist for a given Proxmox VE host
 # - Reads existing blacklist entries for the host from pve_discovery_blacklist.txt
