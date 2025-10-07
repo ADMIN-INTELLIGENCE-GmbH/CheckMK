@@ -758,6 +758,25 @@ setup_ssh_key_single() {
     # Copy the public key to the target host using sshpass+ssh-copy-id
     echo "Copying ED25519 SSH Key to $pve_host ..."
     sshpass -p "$root_pass" ssh-copy-id -i "$ssh_key.pub" "root@$pve_host"
+
+    # Give sshd some time to update authorized_keys (important for some setups)
+    sleep 2
+
+    # Retry passwordless SSH in a short loop (max. 5 seconds)
+    success=0
+    for i in {1..5}; do
+        if ssh -o BatchMode=yes -o ConnectTimeout=5 "root@$pve_host" "echo ok" 2>/dev/null | grep -q ok; then
+            success=1
+            break
+        fi
+        sleep 1
+    done
+
+    if [[ "$success" != "1" ]]; then
+        showerrorbox "Passwordless SSH login failed for $pve_host, even after key copy.\nPlease try selecting the host again or check root login settings."
+        log "ERROR" "Passwordless SSH failed for $pve_host after key copy and wait."
+        return 1
+    fi
 }
 
 # Function: Select a Proxmox VE host
