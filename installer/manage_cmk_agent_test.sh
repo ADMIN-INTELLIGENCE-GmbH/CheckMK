@@ -831,7 +831,7 @@ select_pve_host() {
             # Save new IP if it doesn't already exist in the file
             if ! grep -Fxq "$new_ip" "$SERVER_FILE"; then
                 echo "$new_ip" >> "$SERVER_FILE"
-                setup_ssh_key_single "$new_ip" || { showerrorbox "SSH-Key-Setup failed for $new_ip"; return 1; }
+                setup_ssh_key_single "$new_ip" || { show_error_box "SSH-Key-Setup failed for $new_ip"; return 1; }
                 whiptail --msgbox "Host $new_ip added and SSH key copied. Please select it again from the list." 10 60
                 return 2
             fi
@@ -853,7 +853,9 @@ select_pve_host() {
         # Save newly input IP
         if ! grep -Fxq "$input_ip" "$SERVER_FILE"; then
             echo "$input_ip" >> "$SERVER_FILE"
-            setup_ssh_key_single "$input_ip"
+            setup_ssh_key_single "$input_ip" || { show_error_box "SSH-Key-Setup failed for $input_ip"; return 1; }
+            whiptail --msgbox "Host $input_ip added and SSH key copied. Please select it again from the list." 10 60
+            return 2
         fi
         echo "$input_ip"
     fi
