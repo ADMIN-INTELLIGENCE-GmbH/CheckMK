@@ -936,10 +936,11 @@ configure_pve_local_check() {
         # Prompt to select a Proxmox VE host
         local pve_host
         pve_host=$(select_pve_host)
+        show_warning_box $?
         local select_result=$?
         
         if [[ $select_result -eq 2 ]]; then
-            select_pve_host  # New host added, back to menu
+            continue  # New host added, back to menu
         elif [[ $select_result -ne 0 ]]; then
             return    # Other error or abort
         elif [[ -z "$pve_host" ]]; then
