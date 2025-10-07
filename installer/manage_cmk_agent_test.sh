@@ -831,7 +831,9 @@ select_pve_host() {
             # Save new IP if it doesn't already exist in the file
             if ! grep -Fxq "$new_ip" "$SERVER_FILE"; then
                 echo "$new_ip" >> "$SERVER_FILE"
-                setup_ssh_key_single "$new_ip"
+                setup_ssh_key_single "$new_ip" || { showerrorbox "SSH-Key-Setup failed for $new_ip"; return 1; }
+                whiptail --msgbox "Host $new_ip added and SSH key copied. Please select it again from the list." 10 60
+                return 2
             fi
             echo "$new_ip"
         else
@@ -931,18 +933,16 @@ configure_pve_local_check() {
     while (( continue_config )); do
         # Prompt to select a Proxmox VE host
         local pve_host
-        pve_host=$(select_pve_host) || return
-        if [[ -z "$pve_host" ]]; then
-            whiptail --msgbox "No Proxmox VE Host selected. Aborting." 10 50
+        pve_host=$(select_pve_host) || {
+            if [[ -z "$pve_host" ]]; then
+                whiptail --msgbox "No Proxmox VE Host selected. Aborting." 10 50
+                return
+            fi
+            if [[ $? -eq 2 ]]; then
+                continue
+            fi
             return
-        fi
-
-        # # Test if ssh login with is possible, else abort
-        # if ! ssh -o BatchMode=yes -o ConnectTimeout=5 "root@$pve_host" "echo ok" 2>/dev/null | grep -q ok; then
-        #     showerrorbox "Direct SSH login failed (Script-Check). Authorized Keys may not yet be loaded by sshd. Try waiting 5 seconds and retry or reboot target host."
-        #     log "ERROR" "Direct SSH login for Blacklist failed for $pve_host."
-        #     return 1
-        # fi
+        }
 
         # Manage VM blacklist for the selected host
         manage_vm_blacklist "$pve_host" || continue
