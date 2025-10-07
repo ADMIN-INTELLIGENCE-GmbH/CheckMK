@@ -781,7 +781,7 @@ setup_ssh_key_single() {
     done
 
     if [[ "$success" != "1" ]]; then
-        showerrorbox "Passwordless SSH login failed for $pve_host, even after key copy.\nPlease try selecting the host again or check root login settings."
+        show_error_box "Passwordless SSH login failed for $pve_host, even after key copy.\nPlease try selecting the host again or check root login settings."
         log "ERROR" "Passwordless SSH failed for $pve_host after key copy and wait."
         return 1
     fi
@@ -937,12 +937,12 @@ configure_pve_local_check() {
             return
         fi
 
-        # Test if ssh login with is possible, else abort
-        if ! ssh -o BatchMode=yes -o ConnectTimeout=5 "root@$pve_host" "echo ok" 2>/dev/null | grep -q ok; then
-            showerrorbox "Direct SSH login failed (Script-Check). Authorized Keys may not yet be loaded by sshd. Try waiting 5 seconds and retry or reboot target host."
-            log "ERROR" "Direct SSH login for Blacklist failed for $pve_host."
-            return 1
-        fi
+        # # Test if ssh login with is possible, else abort
+        # if ! ssh -o BatchMode=yes -o ConnectTimeout=5 "root@$pve_host" "echo ok" 2>/dev/null | grep -q ok; then
+        #     showerrorbox "Direct SSH login failed (Script-Check). Authorized Keys may not yet be loaded by sshd. Try waiting 5 seconds and retry or reboot target host."
+        #     log "ERROR" "Direct SSH login for Blacklist failed for $pve_host."
+        #     return 1
+        # fi
 
         # Manage VM blacklist for the selected host
         manage_vm_blacklist "$pve_host" || continue
