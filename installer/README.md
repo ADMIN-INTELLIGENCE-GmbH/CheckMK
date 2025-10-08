@@ -72,10 +72,6 @@ This script supports the integration and management of Proxmox VE (PVE) hosts fo
 *   SSH key-based authentication must be pre-configured between the Checkmk server and any Proxmox VE host to enable secure, passwordless access for inventory queries.
 *   The local check configuration must be set up directly on the Checkmk server itself, not on the individual PVE hosts.
 
-# License
-
-Specify the license under which this script is distributed, e.g., MIT License.
-
 # Disclaimer
 
 This script is provided as-is without warranty. Use at your own risk. Ensure you test in a controlled environment before deploying to production systems.
