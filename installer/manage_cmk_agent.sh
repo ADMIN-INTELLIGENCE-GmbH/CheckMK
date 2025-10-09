@@ -642,7 +642,7 @@ install_local_checks_menu() {
             [[ "$owncheck" == "$check" ]] && found=1
         done
         if [[ $found -eq 0 ]]; then
-            CHECKLIST_ITEMS+=("$owncheck" "OWN SCRIPT" "ON")
+            CHECKLIST_ITEMS+=("$owncheck" "| OWN SCRIPT" "ON")
         fi
     done
 
