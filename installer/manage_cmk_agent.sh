@@ -48,7 +48,7 @@
 # - 8. Main functions and logic
 ############################################################
 
-HEADER="\nADMIN INTELLIGENCE GmbH | v2.0.0 | Sascha Jelinek | 2025-09-18"
+HEADER="\nADMIN INTELLIGENCE GmbH | v2.0.1 | Sascha Jelinek | 2025-10-09"
 
 ############################################################
 # === 1. Global configuration variables ===
