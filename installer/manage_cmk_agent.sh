@@ -29,6 +29,24 @@
 # Version: 2.0.0
 # Web: www.admin-intelligence.de
 ############################################################
+# Table of contents
+# - 1. Global configuration variables
+# --- 1.1 Color schemes for different message types
+# --- 1.2 Logging
+# - 1.3 Helper Scripts
+# - 2. User Interface
+# --- 2.1 Additional Menues
+# ----- 2.1.1 PVE Menues
+# ----- 2.1.2 Site selection
+# ----- 2.1.3 Additional Menues
+# - 3. Key and config checks
+# - 4. Installation and update logic
+# - 5. Plugin managent and configuration
+# - 6. Local checks management
+# --- 6.1 PVE backup configuration
+# - 7. Registration and agent management for cloud sites
+# - 8. Main functions and logic
+############################################################
 
 HEADER="\nADMIN INTELLIGENCE GmbH | v2.0.0 | Sascha Jelinek | 2025-09-18"
 
@@ -617,6 +635,17 @@ install_local_checks_menu() {
         CHECKLIST_ITEMS+=("$check" "${DESCRIPTIONS[$check]}" "$status")
     done
 
+    # Add own checks to the list to prevent from removal
+    for owncheck in "${installed_local_checks[@]}"; do
+        local found=0
+        for check in "${!LOCAL_CHECKS[@]}"; do
+            [[ "$owncheck" == "$check" ]] && found=1
+        done
+        if [[ $found -eq 0 ]]; then
+            CHECKLIST_ITEMS+=("$owncheck" "OWN SCRIPT" "ON")
+        fi
+    done
+
     # Show checklist dialog for user to select which local checks to install/manage
     local selected_local_checks=()
     {
@@ -651,7 +680,13 @@ install_local_checks_menu() {
         for selected in "${selected_local_checks[@]}"; do
             [[ "$selected" == "$check" ]] && still_selected=1
         done
-        if [[ $still_selected -eq 0 ]]; then
+        # Check if local check is not managed by the script (not part of LOCAL_CHECKS)
+        local is_ownscript=1
+        for known in "${!LOCAL_CHECKS[@]}"; do
+            [[ "$check" == "$known" ]] && is_ownscript=0
+        done
+        # Do not remove OWN SCRIPTS
+        if [[ $still_selected -eq 0 && $is_ownscript -eq 0 ]]; then
             remove_local_check_file "$check"
         fi
     done
