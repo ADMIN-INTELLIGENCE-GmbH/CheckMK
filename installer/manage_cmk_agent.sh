@@ -25,8 +25,8 @@
 ############################################################
 # Author: Sascha Jelinek
 # Company: ADMIN INTELLIGENCE GmbH
-# Date: 2025-09-18
-# Version: 2.0.0
+# Date: 2025-10-09
+# Version: 2.0.1
 # Web: www.admin-intelligence.de
 ############################################################
 # Table of contents
