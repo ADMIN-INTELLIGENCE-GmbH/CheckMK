@@ -85,6 +85,7 @@ while IFS= read -r line; do
     name=${line%%;*}
     alias=${line#*;}
     [[ -z "$alias" ]] && alias="$name"
+    [[ -z "$name" ]] && continue
     alias_map["$name"]="${alias}"
 done < <($cmk_prefix "echo -e 'GET hosts\nColumns: name alias\nOutputFormat: plain\n' | unixcat $livestatus_socket")
 
