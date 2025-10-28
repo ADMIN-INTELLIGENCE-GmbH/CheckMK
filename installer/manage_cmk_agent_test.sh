@@ -25,12 +25,30 @@
 ############################################################
 # Author: Sascha Jelinek
 # Company: ADMIN INTELLIGENCE GmbH
-# Date: 2025-09-18
-# Version: 2.0.0
+# Date: 2025-10-09
+# Version: 2.0.1
 # Web: www.admin-intelligence.de
 ############################################################
+# Table of contents
+# - 1. Global configuration variables
+# --- 1.1 Color schemes for different message types
+# --- 1.2 Logging
+# - 1.3 Helper Scripts
+# - 2. User Interface
+# --- 2.1 Additional Menues
+# ----- 2.1.1 PVE Menues
+# ----- 2.1.2 Site selection
+# ----- 2.1.3 Additional Menues
+# - 3. Key and config checks
+# - 4. Installation and update logic
+# - 5. Plugin managent and configuration
+# - 6. Local checks management
+# --- 6.1 PVE backup configuration
+# - 7. Registration and agent management for cloud sites
+# - 8. Main functions and logic
+############################################################
 
-HEADER="\nADMIN INTELLIGENCE GmbH | v2.0.0 | Sascha Jelinek | 2025-09-18"
+HEADER="\nADMIN INTELLIGENCE GmbH | v2.0.1 | Sascha Jelinek | 2025-10-09"
 
 ############################################################
 # === 1. Global configuration variables ===
@@ -617,6 +635,17 @@ install_local_checks_menu() {
         CHECKLIST_ITEMS+=("$check" "${DESCRIPTIONS[$check]}" "$status")
     done
 
+    # Add own checks to the list to prevent from removal
+    for owncheck in "${installed_local_checks[@]}"; do
+        local found=0
+        for check in "${!LOCAL_CHECKS[@]}"; do
+            [[ "$owncheck" == "$check" ]] && found=1
+        done
+        if [[ $found -eq 0 ]]; then
+            CHECKLIST_ITEMS+=("$owncheck" "| OWN SCRIPT" "ON")
+        fi
+    done
+
     # Show checklist dialog for user to select which local checks to install/manage
     local selected_local_checks=()
     {
@@ -651,7 +680,13 @@ install_local_checks_menu() {
         for selected in "${selected_local_checks[@]}"; do
             [[ "$selected" == "$check" ]] && still_selected=1
         done
-        if [[ $still_selected -eq 0 ]]; then
+        # Check if local check is not managed by the script (not part of LOCAL_CHECKS)
+        local is_ownscript=1
+        for known in "${!LOCAL_CHECKS[@]}"; do
+            [[ "$check" == "$known" ]] && is_ownscript=0
+        done
+        # Do not remove OWN SCRIPTS
+        if [[ $still_selected -eq 0 && $is_ownscript -eq 0 ]]; then
             remove_local_check_file "$check"
         fi
     done
@@ -708,85 +743,6 @@ configure_local_checks_menu() {
 # === 2.1.1 PVE Menues ===
 ############################################################
 
-# Function: Retrieve VM list by executing 'qm list' command on remote PVE host via SSH
-# - Uses SSH with batch mode, 5 second timeout, no strict host key checks
-# - Returns output of 'qm list' command or empty string on failure
-get_qm_list() {
-    local host="$1"
-    ssh -o BatchMode=yes -o ConnectTimeout=5 -o StrictHostKeyChecking=no "$host" qm list 2>/dev/null
-}
-
-# Function to setup a local ED25519 SSH key if not present,
-# and copy the public key to the specified PVE host.
-setup_ssh_key_single() {
-    ssh_key="$HOME/.ssh/id_ed25519"
-    # Check if SSH key exists; if not, generate a new one without passphrase
-    if [[ ! -f "$ssh_key" ]]; then
-        echo "No ED25519 SSH key found, generating ..."
-        ssh-keygen -t ed25519 -N "" -f "$ssh_key"
-        if [[ $? -ne 0 ]]; then
-            show_error_box "Error generating SSH keys!"
-            log "ERROR" "Error generating SSH keys!"
-            exit 1
-        fi
-    fi
-
-    # Check if sshpass is installed; try silent install if missing
-    if ! command -v sshpass &>/dev/null; then
-        log "ERROR" "sshpass is not installed. Trying to install sshpass ..."
-        if command -v apt-get &>/dev/null; then
-            sudo apt-get update &>/dev/null
-            sudo apt-get install -y sshpass &>/dev/null
-        elif command -v yum &>/dev/null; then
-            sudo yum install -y sshpass &>/dev/null
-        else
-            show_error_box "Cannot install sshpass automatically (no apt-get or yum available)."
-            log "ERROR" "sshpass cannot be installed automatically. Aborting setup_ssh_key_single."
-            exit 1
-        fi
-
-        # Verify installation
-        if ! command -v sshpass &>/dev/null; then
-            show_error_box "Failed to install sshpass. Please install it manually and retry."
-            log "ERROR" "Failed to install sshpass. User intervention required."
-            exit 1
-        fi
-    fi
-
-    # Extract and sanitize hostname or IP from function argument
-    local pve_host="$1"
-    pve_host=$(echo -e "${pve_host}" | tr -d '[:space:]')
-    # Exit if no hostname/IP is provided
-    [[ -z "$pve_host" ]] && return
-
-    # Prompt for root password for SSH key distribution
-    local root_pass
-    root_pass=$(whiptail --title "Root Password" --passwordbox "Enter SSH root password for $pve_host:" 10 60 3>&1 1>&2 2>&3) || return 1
-
-    # Copy the public key to the target host using sshpass+ssh-copy-id
-    echo "Copying ED25519 SSH Key to $pve_host ..."
-    sshpass -p "$root_pass" ssh-copy-id -i "$ssh_key.pub" "root@$pve_host"
-
-    # Give sshd some time to update authorized_keys (important for some setups)
-    sleep 2
-
-    # Retry passwordless SSH in a short loop (max. 5 seconds)
-    success=0
-    for i in {1..5}; do
-        if ssh -o BatchMode=yes -o ConnectTimeout=5 "root@$pve_host" "echo ok" 2>/dev/null | grep -q ok; then
-            success=1
-            break
-        fi
-        sleep 1
-    done
-
-    if [[ "$success" != "1" ]]; then
-        show_error_box "Passwordless SSH login failed for $pve_host, even after key copy.\nPlease try selecting the host again or check root login settings."
-        log "ERROR" "Passwordless SSH failed for $pve_host after key copy and wait."
-        return 1
-    fi
-}
-
 # Function: Select a Proxmox VE host
 # - Loads previously saved host IPs/hostnames from the file /etc/check_mk/pve_discovery_server.txt
 # - Presents a menu to select an existing host or add a new one via input box
@@ -804,9 +760,6 @@ select_pve_host() {
         mapfile -t server_ips < "$SERVER_FILE"
     fi
 
-    echo "DEBUG: SERVER_FILE content (vor Menü):"
-    cat "$SERVER_FILE" >&2
-
     if (( ${#server_ips[@]} > 0 )); then
         # Build a menu list with existing hosts plus an option to add a new one
         local menu_options=()
@@ -821,69 +774,42 @@ select_pve_host() {
         local choice
         choice=$(whiptail --title "Select Proxmox VE server" --menu \
             "Select a Proxmox VE host IP or choose to add a new one:" 15 60 6 \
-            "${menu_options[@]}" 3>&1 1>&2 2>&3) || { echo "DEBUG: Menu canceled"; return 1; }
-
-        echo "DEBUG: Menu choice: $choice"
+            "${menu_options[@]}" 3>&1 1>&2 2>&3) || return 1
 
         if [[ "$choice" == "$idx" ]]; then
             # Input box for new host IP/hostname
             local new_ip
-            new_ip=$(whiptail --inputbox "Enter new Proxmox VE Host IP or hostname:" 10 60 3>&1 1>&2 2>&3) || { echo "DEBUG: New IP input canceled"; return 1; }
-            new_ip=$(echo "$new_ip" | xargs)
-            echo "DEBUG: User entered new IP: '$new_ip'"
+            new_ip=$(whiptail --inputbox "Enter new Proxmox VE Host IP or hostname:" 10 60 3>&1 1>&2 2>&3) || return 1
             if [[ -z "$new_ip" ]]; then
                 whiptail --msgbox "No host entered. Please try again." 10 50
-                echo "DEBUG: No new IP entered."
                 return 2
             fi
-
-            echo "DEBUG: SERVER_FILE before new_ip insert:"
-            cat "$SERVER_FILE" >&2
+            # Save new IP if it doesn't already exist in the file
             if ! grep -Fxq "$new_ip" "$SERVER_FILE"; then
-                echo "DEBUG: $new_ip NOT FOUND in SERVER_FILE, will add and copy key."
                 echo "$new_ip" >> "$SERVER_FILE"
-                setup_ssh_key_single "$new_ip" || { show_error_box "SSH-Key-Setup failed for $new_ip"; return 1; }
-                whiptail --msgbox "Host $new_ip added and SSH key copied. Please select it again from the list." 10 60
-                echo "DEBUG: $new_ip added. Returning 2 (force menu reload)."
-                return 2
-            else
-                echo "DEBUG: $new_ip already in file."
             fi
             echo "$new_ip"
         else
+            # Return the selected existing host IP/hostname
             local idx_choice=$((choice-1))
-            echo "DEBUG: Selected existing host: '${server_ips[$idx_choice]}'"
             echo "${server_ips[$idx_choice]}"
         fi
 
     else
         # No stored hosts, prompt for IP/hostname input directly
         local input_ip
-        input_ip=$(whiptail --inputbox "Enter Proxmox VE Host IP or hostname:" 10 60 3>&1 1>&2 2>&3) || { echo "DEBUG: Input box canceled"; return 1; }
-        input_ip=$(echo "$input_ip" | xargs)
-        echo "DEBUG: User entered initial IP: '$input_ip'"
+        input_ip=$(whiptail --inputbox "Enter Proxmox VE Host IP or hostname:" 10 60 3>&1 1>&2 2>&3) || return 1
         if [[ -z "$input_ip" ]]; then
             whiptail --msgbox "No host entered. Please try again." 10 50
-            echo "DEBUG: No IP provided in direct input."
             return 2
         fi
-
-        echo "DEBUG: SERVER_FILE before input_ip insert:"
-        cat "$SERVER_FILE" >&2
+        # Save newly input IP
         if ! grep -Fxq "$input_ip" "$SERVER_FILE"; then
-            echo "DEBUG: $input_ip NOT FOUND in SERVER_FILE, will add and copy key."
             echo "$input_ip" >> "$SERVER_FILE"
-            setup_ssh_key_single "$input_ip" || { show_error_box "SSH-Key-Setup failed for $input_ip"; return 1; }
-            whiptail --msgbox "Host $input_ip added and SSH key copied. Please select it again from the list." 10 60
-            echo "DEBUG: $input_ip added. Returning 2 (force menu reload)."
-            return 2
-        else
-            echo "DEBUG: $input_ip already in file."
         fi
         echo "$input_ip"
     fi
 }
-
 
 # Function: Manage the VM blacklist for a given Proxmox VE host
 # - Reads existing blacklist entries for the host from pve_discovery_blacklist.txt
@@ -959,15 +885,8 @@ configure_pve_local_check() {
     while (( continue_config )); do
         # Prompt to select a Proxmox VE host
         local pve_host
-        pve_host=$(select_pve_host)
-        show_warning_box $?
-        local select_result=$?
-        
-        if [[ $select_result -eq 2 ]]; then
-            continue  # New host added, back to menu
-        elif [[ $select_result -ne 0 ]]; then
-            return    # Other error or abort
-        elif [[ -z "$pve_host" ]]; then
+        pve_host=$(select_pve_host) || return
+        if [[ -z "$pve_host" ]]; then
             whiptail --msgbox "No Proxmox VE Host selected. Aborting." 10 50
             return
         fi
@@ -1174,7 +1093,8 @@ load_config_if_key_valid() {
             SITE_AGENT_PACKAGE="${SITE_REF["site_${idx}_agent_package"]}"
             SITE_AGENT_VERSION="${SITE_REF["site_${idx}_agent_version"]}"
             SITE_AGENT_URL="${SITE_URL}/${SITE_NAME}/check_mk/agents/"
-            SITE_PLUGIN_URL="${SITE_URL}/${SITE_NAME}/check_mk/agents/plugins"
+            SITE_PLUGIN_URL="https://monitoring.admin-intelligence.de/checkmk/check_mk/agents/plugins"
+            # SITE_PLUGIN_URL="${SITE_URL}/${SITE_NAME}/check_mk/agents/plugins"
 
             # Log successful config load
             log "Configuration loaded for site \"$SITE_TEXT\""
@@ -1285,7 +1205,8 @@ check_and_ask_mandatory_fields() {
     SITE_AGENT_PACKAGE="${SITE_REF["site_${idx}_agent_package"]}"
     SITE_AGENT_VERSION="${SITE_REF["site_${idx}_agent_version"]}"
     SITE_AGENT_URL="${SITE_URL}/${SITE_NAME}/check_mk/agents/"
-    SITE_PLUGIN_URL="${SITE_URL}/${SITE_NAME}/check_mk/agents/plugins"
+    SITE_PLUGIN_URL="https://monitoring.admin-intelligence.de/checkmk/check_mk/agents/plugins"
+    # SITE_PLUGIN_URL="${SITE_URL}/${SITE_NAME}/check_mk/agents/plugins"
 }
 
 ############################################################
@@ -2521,6 +2442,14 @@ setup_pve_backup_config_cronjob() {
         (crontab -l -u root 2>/dev/null; echo "$cron_job") | crontab -u root -
         log "[INFO] PVE backup config cronjob added to root crontab."
     fi
+}
+
+# Function: Retrieve VM list by executing 'qm list' command on remote PVE host via SSH
+# - Uses SSH with batch mode, 5 second timeout, no strict host key checks
+# - Returns output of 'qm list' command or empty string on failure
+get_qm_list() {
+    local host="$1"
+    ssh -o BatchMode=yes -o ConnectTimeout=5 -o StrictHostKeyChecking=no "$host" qm list 2>/dev/null
 }
 
 # Function: Check if any Checkmk site is active
