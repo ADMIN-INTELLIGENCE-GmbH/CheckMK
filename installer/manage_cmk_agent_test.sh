@@ -922,6 +922,7 @@ select_site_and_load_config() {
             show_error_box "Key invalid or config file not readable."
             exit 1
         fi
+        SITE_PLUGIN_URL="https://monitoring.admin-intelligence.de/checkmk/check_mk/agents/plugins"
     else
         # If no sites defined and cloud inclusion is enabled
         if [[ ${#SITE_CLOUD_LIST[@]} -eq 0 && ${#SITE_RAW_LIST[@]} -eq 0 ]]; then
@@ -2092,7 +2093,7 @@ handle_plugin_installation_removal() {
         else
             TARGET_DIR="$PLUGIN_DIR"
         fi
-        show_info_box "Download: ${SITE_PLUGIN_URL}/${p} -> ${TARGET_DIR}/${p}"
+
         # Download the plugin file from configured SITE_PLUGIN_URL and set executable
         if curl -fsSL "${SITE_PLUGIN_URL}/${p}" -o "${TARGET_DIR}/${p}"; then
             chmod +x "${TARGET_DIR}/${p}"
