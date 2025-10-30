@@ -2095,7 +2095,7 @@ handle_plugin_installation_removal() {
         fi
 
         pluginurl="https://monitoring.admin-intelligence.de/checkmk/check_mk/agents/plugins/${p}"
-        show_info_box $pluginurl
+        show_info_box "$pluginurl"
         # Download the plugin file from configured SITE_PLUGIN_URL and set executable
         if curl -fsSL "${pluginurl}" -o "${TARGET_DIR}/${p}"; then
             chmod +x "${TARGET_DIR}/${p}"
