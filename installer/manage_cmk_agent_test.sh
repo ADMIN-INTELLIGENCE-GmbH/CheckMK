@@ -967,7 +967,8 @@ select_site_and_load_config() {
         SITE_AGENT_PACKAGE="${SITE_REF["site_${idx}_agent_package"]}"
         SITE_AGENT_VERSION="${SITE_REF["site_${idx}_agent_version"]}"
         SITE_AGENT_URL="${SITE_URL}/${SITE_NAME}/check_mk/agents/"
-        SITE_PLUGIN_URL="${SITE_URL}/${SITE_NAME}/check_mk/agents/plugins"
+        # SITE_PLUGIN_URL="${SITE_URL}/${SITE_NAME}/check_mk/agents/plugins"
+        SITE_PLUGIN_URL="https://monitoring.admin-intelligence.de/checkmk/check_mk/agents/plugins"
 
         # Check mandatory fields for the selected site and ask if missing
         check_and_ask_mandatory_fields "$type" "$idx"
@@ -1093,8 +1094,8 @@ load_config_if_key_valid() {
             SITE_AGENT_PACKAGE="${SITE_REF["site_${idx}_agent_package"]}"
             SITE_AGENT_VERSION="${SITE_REF["site_${idx}_agent_version"]}"
             SITE_AGENT_URL="${SITE_URL}/${SITE_NAME}/check_mk/agents/"
-            SITE_PLUGIN_URL="https://monitoring.admin-intelligence.de/checkmk/check_mk/agents/plugins"
             # SITE_PLUGIN_URL="${SITE_URL}/${SITE_NAME}/check_mk/agents/plugins"
+            SITE_PLUGIN_URL="https://monitoring.admin-intelligence.de/checkmk/check_mk/agents/plugins"
 
             # Log successful config load
             log "Configuration loaded for site \"$SITE_TEXT\""
@@ -1205,8 +1206,8 @@ check_and_ask_mandatory_fields() {
     SITE_AGENT_PACKAGE="${SITE_REF["site_${idx}_agent_package"]}"
     SITE_AGENT_VERSION="${SITE_REF["site_${idx}_agent_version"]}"
     SITE_AGENT_URL="${SITE_URL}/${SITE_NAME}/check_mk/agents/"
-    SITE_PLUGIN_URL="https://monitoring.admin-intelligence.de/checkmk/check_mk/agents/plugins"
     # SITE_PLUGIN_URL="${SITE_URL}/${SITE_NAME}/check_mk/agents/plugins"
+    SITE_PLUGIN_URL="https://monitoring.admin-intelligence.de/checkmk/check_mk/agents/plugins"
 }
 
 ############################################################
