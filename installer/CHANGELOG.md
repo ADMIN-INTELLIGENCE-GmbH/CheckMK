@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.0.2 - 2025-10-30
+
+*   added plugin-url to the installation function for plugins
+
 ## v2.0.1 - 2025-10-09
 
 *   added handling if own local checks are installed

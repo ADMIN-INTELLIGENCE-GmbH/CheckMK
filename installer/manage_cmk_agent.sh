@@ -25,8 +25,8 @@
 ############################################################
 # Author: Sascha Jelinek
 # Company: ADMIN INTELLIGENCE GmbH
-# Date: 2025-10-09
-# Version: 2.0.1
+# Date: 2025-10-30
+# Version: 2.0.2
 # Web: www.admin-intelligence.de
 ############################################################
 # Table of contents
@@ -48,7 +48,7 @@
 # - 8. Main functions and logic
 ############################################################
 
-HEADER="\nADMIN INTELLIGENCE GmbH | v2.0.1 | Sascha Jelinek | 2025-10-09"
+HEADER="\nADMIN INTELLIGENCE GmbH | v2.0.2 | Sascha Jelinek | 2025-10-30"
 
 ############################################################
 # === 1. Global configuration variables ===
@@ -922,6 +922,7 @@ select_site_and_load_config() {
             show_error_box "Key invalid or config file not readable."
             exit 1
         fi
+        SITE_PLUGIN_URL="https://monitoring.admin-intelligence.de/checkmk/check_mk/agents/plugins"
     else
         # If no sites defined and cloud inclusion is enabled
         if [[ ${#SITE_CLOUD_LIST[@]} -eq 0 && ${#SITE_RAW_LIST[@]} -eq 0 ]]; then
@@ -967,7 +968,8 @@ select_site_and_load_config() {
         SITE_AGENT_PACKAGE="${SITE_REF["site_${idx}_agent_package"]}"
         SITE_AGENT_VERSION="${SITE_REF["site_${idx}_agent_version"]}"
         SITE_AGENT_URL="${SITE_URL}/${SITE_NAME}/check_mk/agents/"
-        SITE_PLUGIN_URL="${SITE_URL}/${SITE_NAME}/check_mk/agents/plugins"
+        # SITE_PLUGIN_URL="${SITE_URL}/${SITE_NAME}/check_mk/agents/plugins"
+        SITE_PLUGIN_URL="https://monitoring.admin-intelligence.de/checkmk/check_mk/agents/plugins"
 
         # Check mandatory fields for the selected site and ask if missing
         check_and_ask_mandatory_fields "$type" "$idx"
@@ -1093,7 +1095,8 @@ load_config_if_key_valid() {
             SITE_AGENT_PACKAGE="${SITE_REF["site_${idx}_agent_package"]}"
             SITE_AGENT_VERSION="${SITE_REF["site_${idx}_agent_version"]}"
             SITE_AGENT_URL="${SITE_URL}/${SITE_NAME}/check_mk/agents/"
-            SITE_PLUGIN_URL="${SITE_URL}/${SITE_NAME}/check_mk/agents/plugins"
+            # SITE_PLUGIN_URL="${SITE_URL}/${SITE_NAME}/check_mk/agents/plugins"
+            SITE_PLUGIN_URL="https://monitoring.admin-intelligence.de/checkmk/check_mk/agents/plugins"
 
             # Log successful config load
             log "Configuration loaded for site \"$SITE_TEXT\""
@@ -1204,7 +1207,8 @@ check_and_ask_mandatory_fields() {
     SITE_AGENT_PACKAGE="${SITE_REF["site_${idx}_agent_package"]}"
     SITE_AGENT_VERSION="${SITE_REF["site_${idx}_agent_version"]}"
     SITE_AGENT_URL="${SITE_URL}/${SITE_NAME}/check_mk/agents/"
-    SITE_PLUGIN_URL="${SITE_URL}/${SITE_NAME}/check_mk/agents/plugins"
+    # SITE_PLUGIN_URL="${SITE_URL}/${SITE_NAME}/check_mk/agents/plugins"
+    SITE_PLUGIN_URL="https://monitoring.admin-intelligence.de/checkmk/check_mk/agents/plugins"
 }
 
 ############################################################
@@ -2089,8 +2093,10 @@ handle_plugin_installation_removal() {
         else
             TARGET_DIR="$PLUGIN_DIR"
         fi
+
+        pluginurl="https://monitoring.admin-intelligence.de/checkmk/check_mk/agents/plugins/${p}"
         # Download the plugin file from configured SITE_PLUGIN_URL and set executable
-        if curl -fsSL "${SITE_PLUGIN_URL}/${p}" -o "${TARGET_DIR}/${p}"; then
+        if curl -fsSL "${pluginurl}" -o "${TARGET_DIR}/${p}"; then
             chmod +x "${TARGET_DIR}/${p}"
             log "[INFO] plugin installed: $p"
         else
