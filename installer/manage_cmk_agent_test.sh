@@ -2097,7 +2097,7 @@ handle_plugin_installation_removal() {
             chmod +x "${TARGET_DIR}/${p}"
             log "[INFO] plugin installed: $p"
         else
-            log "Download: ${SITE_PLUGIN_URL}/${p} -> ${TARGET_DIR}/${p}"
+            show_error_box "Download: ${SITE_PLUGIN_URL}/${p} -> ${TARGET_DIR}/${p}"
             show_error_box "Error downloading $p!"
         fi
     done
