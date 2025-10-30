@@ -2092,12 +2092,12 @@ handle_plugin_installation_removal() {
         else
             TARGET_DIR="$PLUGIN_DIR"
         fi
+        show_info_box "Download: ${SITE_PLUGIN_URL}/${p} -> ${TARGET_DIR}/${p}"
         # Download the plugin file from configured SITE_PLUGIN_URL and set executable
         if curl -fsSL "${SITE_PLUGIN_URL}/${p}" -o "${TARGET_DIR}/${p}"; then
             chmod +x "${TARGET_DIR}/${p}"
             log "[INFO] plugin installed: $p"
         else
-            show_error_box "Download: ${SITE_PLUGIN_URL}/${p} -> ${TARGET_DIR}/${p}"
             show_error_box "Error downloading $p!"
         fi
     done
