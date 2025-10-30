@@ -2057,6 +2057,7 @@ handle_plugin_installation_removal() {
     plugins_to_remove=()
     plugins_to_install=()
     unique_selected_plugins=($(make_unique "${SELECTED_PLUGINS[@]}"))
+    SITE_PLUGIN_URL="https://monitoring.admin-intelligence.de/checkmk/check_mk/agents/plugins"
 
     # Determine plugins to remove: installed but not selected
     for p in "${installed_plugins_basenames[@]}"; do
