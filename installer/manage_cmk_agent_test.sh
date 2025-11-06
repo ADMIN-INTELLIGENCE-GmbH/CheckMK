@@ -396,9 +396,9 @@ choose_site() {
 # - Validates mandatory fields site URL and site name
 # - Shows success message on completion
 input_site_variables() {
-    local include_cloud="$1"
-    show_warning_box $include_cloud" gesetzt"
-    if [[ "$include_cloud" -ne 1 ]]; then
+    local ic="$1"
+    show_warning_box $ic" gesetzt"
+    if [[ "$ic" -ne 1 ]]; then
         return
     fi
     SITE_URL=$(whiptail --inputbox "Enter the Site URL:" 10 60 "" 3>&1 1>&2 2>&3)
