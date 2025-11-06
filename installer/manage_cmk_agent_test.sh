@@ -396,6 +396,9 @@ choose_site() {
 # - Validates mandatory fields site URL and site name
 # - Shows success message on completion
 input_site_variables() {
+    if [[ "$include_cloud" -ne 1 ]]; then
+        return
+    fi
     SITE_URL=$(whiptail --inputbox "Enter the Site URL:" 10 60 "" 3>&1 1>&2 2>&3)
     if [ $? -ne 0 ] || [ -z "$SITE_URL" ]; then
         show_error_box "Site URL is required!"
@@ -1076,7 +1079,9 @@ load_config_if_key_valid() {
         if [[ "$SELECTED_SITE" =~ ^(cloud|raw)_site_([0-9]+)$ ]]; then
             type="${BASH_REMATCH[1]}"
             idx="${BASH_REMATCH[2]}"
-            check_and_ask_mandatory_fields "$type" "$idx"
+            if [[ "$type" == "cloud" ]]; then
+                check_and_ask_mandatory_fields "$type" "$idx"
+            fi
 
             # Declare SITE_REF as a nameref to the appropriate associative array
             if [[ "$type" == "cloud" ]]; then
