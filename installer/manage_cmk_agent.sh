@@ -25,8 +25,8 @@
 ############################################################
 # Author: Sascha Jelinek
 # Company: ADMIN INTELLIGENCE GmbH
-# Date: 2025-10-30
-# Version: 2.0.2
+# Date: 2025-11-06
+# Version: 2.1.0
 # Web: www.admin-intelligence.de
 ############################################################
 # Table of contents
@@ -48,7 +48,7 @@
 # - 8. Main functions and logic
 ############################################################
 
-HEADER="\nADMIN INTELLIGENCE GmbH | v2.0.2 | Sascha Jelinek | 2025-10-30"
+HEADER="\nADMIN INTELLIGENCE GmbH | v2.1.0 | Sascha Jelinek | 2025-11-06"
 
 ############################################################
 # === 1. Global configuration variables ===
@@ -396,6 +396,10 @@ choose_site() {
 # - Validates mandatory fields site URL and site name
 # - Shows success message on completion
 input_site_variables() {
+    local ic="$1"
+    if [[ "$ic" -ne 1 ]]; then
+        return
+    fi
     SITE_URL=$(whiptail --inputbox "Enter the Site URL:" 10 60 "" 3>&1 1>&2 2>&3)
     if [ $? -ne 0 ] || [ -z "$SITE_URL" ]; then
         show_error_box "Site URL is required!"
@@ -929,7 +933,7 @@ select_site_and_load_config() {
             if [[ "$include_cloud" -eq 1 ]]; then
                 log "[INFO] No predefined sites found - starting manual input"
                 # Ask user for manual site input
-                input_site_variables
+                input_site_variables "$include_cloud"
                 return
             else
                 # RAW site mode: no input needed, start directly
@@ -1076,7 +1080,9 @@ load_config_if_key_valid() {
         if [[ "$SELECTED_SITE" =~ ^(cloud|raw)_site_([0-9]+)$ ]]; then
             type="${BASH_REMATCH[1]}"
             idx="${BASH_REMATCH[2]}"
-            check_and_ask_mandatory_fields "$type" "$idx"
+            if [[ "$type" == "cloud" ]]; then
+                check_and_ask_mandatory_fields "$type" "$idx"
+            fi
 
             # Declare SITE_REF as a nameref to the appropriate associative array
             if [[ "$type" == "cloud" ]]; then
@@ -1122,12 +1128,17 @@ load_config_if_key_valid() {
 check_and_ask_mandatory_fields() {
     local site_type="$1"     # cloud or raw
     local site_index="$2"    # e.g., 1, 2, ...
+
+    if [[ "$site_type" != "cloud" ]]; then
+        return
+    fi
+
     local -n arr_ref        # Nameref to associative array SITE_CLOUD_LIST or SITE_RAW_LIST
 
     # Determine array and mandatory fields based on site type
     if [[ "$site_type" == "cloud" ]]; then
         arr_ref=SITE_CLOUD_LIST
-        local fields=("url" "name")
+        local fields=("url" "name" "register")
     else
         arr_ref=SITE_RAW_LIST
         local fields=("name")
@@ -1146,7 +1157,7 @@ check_and_ask_mandatory_fields() {
     done
 
     # For cloud sites, also check optional update user password field
-    if [[ "$site_type" == "cloud" ]]; then
+    if [[ "$sitetype" == "cloud" ]] && [[ " ${missing_fields[*]} " =~ " url " ]]; then
         if [[ -z "${arr_ref["site_${site_index}_updateuserpass"]}" ]]; then
             missing_fields+=("updateuserpass_optional")
         fi
@@ -2582,18 +2593,20 @@ main() {
     fi
 
     # Determine if to include cloud in menu options
-    if [[ -n "$KEY" ]]; then
-        include_cloud=1
-    elif ! declare -p include_cloud &>/dev/null; then
-        # Not set yet: ask user if menu should exclude cloud
-        if whiptail --title "Quick start option" --yesno "No predefined Cloud or Raw sites detected.\n\nShow menu without Cloud option?" 10 70; then
-            include_cloud=0
+    if [[ -z "$include_cloud" ]]; then
+        if [[ -n "$KEY" ]]; then
+            include_cloud=1
+        elif ! declare -p include_cloud &>/dev/null; then
+            # Not set yet: ask user if menu should exclude cloud
+            if whiptail --title "Quick start option" --yesno "No predefined Cloud or Raw sites detected...\nShow menu without Cloud option?" 10 70; then
+                include_cloud=0
+            else
+                include_cloud=1
+            fi
         else
+            # If sites exist, cloud menu included by default
             include_cloud=1
         fi
-    else
-        # If sites exist, cloud menu included by default
-        include_cloud=1
     fi
 
     local menu_order=()
