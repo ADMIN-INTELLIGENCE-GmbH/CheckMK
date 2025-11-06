@@ -397,9 +397,6 @@ choose_site() {
 # - Shows success message on completion
 input_site_variables() {
     local ic="$1"
-    show_warning_box "DEBUG param: $ic" # DEBUG: 1
-    show_warning_box "DEBUG global: $include_cloud" # DEBUG: 1
-    show_warning_box $ic" gesetzt"
     if [[ "$ic" -ne 1 ]]; then
         return
     fi
@@ -932,15 +929,11 @@ select_site_and_load_config() {
         SITE_PLUGIN_URL="https://monitoring.admin-intelligence.de/checkmk/check_mk/agents/plugins"
     else
         # If no sites defined and cloud inclusion is enabled
-        show_warning_box "1 DEBUG: include_cloud = $include_cloud" # DEBUG: 0 
         if [[ ${#SITE_CLOUD_LIST[@]} -eq 0 && ${#SITE_RAW_LIST[@]} -eq 0 ]]; then
-            show_warning_box "4 DEBUG: include_cloud = $include_cloud" # DEBUG: 0 
             if [[ "$include_cloud" -eq 1 ]]; then
                 log "[INFO] No predefined sites found - starting manual input"
                 # Ask user for manual site input
-                show_warning_box "2 DEBUG: include_cloud = $include_cloud" # DEBUG: 1
                 input_site_variables "$include_cloud"
-                show_warning_box "3 DEBUG: include_cloud = $include_cloud" # DEBUG: 1
                 return
             else
                 # RAW site mode: no input needed, start directly
