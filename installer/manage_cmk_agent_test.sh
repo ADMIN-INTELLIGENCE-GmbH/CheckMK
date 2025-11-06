@@ -1076,10 +1076,7 @@ load_config_if_key_valid() {
         if [[ "$SELECTED_SITE" =~ ^(cloud|raw)_site_([0-9]+)$ ]]; then
             type="${BASH_REMATCH[1]}"
             idx="${BASH_REMATCH[2]}"
-
-            # if [[ "$type" == "cloud" ]]; then
-            #     check_and_ask_mandatory_fields "$type" "$idx"
-            # fi
+            check_and_ask_mandatory_fields "$type" "$idx"
 
             # Declare SITE_REF as a nameref to the appropriate associative array
             if [[ "$type" == "cloud" ]]; then
@@ -1126,6 +1123,10 @@ check_and_ask_mandatory_fields() {
     local site_type="$1"     # cloud or raw
     local site_index="$2"    # e.g., 1, 2, ...
     local -n arr_ref        # Nameref to associative array SITE_CLOUD_LIST or SITE_RAW_LIST
+
+    if [[ "$site_type" != "cloud" ]]; then
+        return
+    fi
 
     # Determine array and mandatory fields based on site type
     if [[ "$site_type" == "cloud" ]]; then
