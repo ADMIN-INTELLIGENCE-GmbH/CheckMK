@@ -25,8 +25,8 @@
 ############################################################
 # Author: Sascha Jelinek
 # Company: ADMIN INTELLIGENCE GmbH
-# Date: 2025-10-30
-# Version: 2.0.2
+# Date: 2025-11-06
+# Version: 2.1.0
 # Web: www.admin-intelligence.de
 ############################################################
 # Table of contents
@@ -48,7 +48,7 @@
 # - 8. Main functions and logic
 ############################################################
 
-HEADER="\nADMIN INTELLIGENCE GmbH | v2.0.2 | Sascha Jelinek | 2025-10-30"
+HEADER="\nADMIN INTELLIGENCE GmbH | v2.1.0 | Sascha Jelinek | 2025-11-06"
 
 ############################################################
 # === 1. Global configuration variables ===
