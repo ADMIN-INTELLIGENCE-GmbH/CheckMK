@@ -397,6 +397,8 @@ choose_site() {
 # - Shows success message on completion
 input_site_variables() {
     local ic="$1"
+    show_warning_box "DEBUG param: $ic"
+    show_warning_box "DEBUG global: $include_cloud"
     show_warning_box $ic" gesetzt"
     if [[ "$ic" -ne 1 ]]; then
         return
