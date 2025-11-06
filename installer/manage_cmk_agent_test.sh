@@ -1122,11 +1122,12 @@ load_config_if_key_valid() {
 check_and_ask_mandatory_fields() {
     local site_type="$1"     # cloud or raw
     local site_index="$2"    # e.g., 1, 2, ...
-    local -n arr_ref        # Nameref to associative array SITE_CLOUD_LIST or SITE_RAW_LIST
 
     if [[ "$site_type" != "cloud" ]]; then
         return
     fi
+
+    local -n arr_ref        # Nameref to associative array SITE_CLOUD_LIST or SITE_RAW_LIST
 
     # Determine array and mandatory fields based on site type
     if [[ "$site_type" == "cloud" ]]; then
