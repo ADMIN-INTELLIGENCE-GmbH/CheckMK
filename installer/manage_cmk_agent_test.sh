@@ -1076,7 +1076,10 @@ load_config_if_key_valid() {
         if [[ "$SELECTED_SITE" =~ ^(cloud|raw)_site_([0-9]+)$ ]]; then
             type="${BASH_REMATCH[1]}"
             idx="${BASH_REMATCH[2]}"
-            check_and_ask_mandatory_fields "$type" "$idx"
+            
+            if [[ "$type" == "cloud" ]]; then
+                check_and_ask_mandatory_fields "$type" "$idx"
+            fi
 
             # Declare SITE_REF as a nameref to the appropriate associative array
             if [[ "$type" == "cloud" ]]; then
