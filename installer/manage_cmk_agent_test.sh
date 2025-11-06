@@ -396,11 +396,12 @@ choose_site() {
 # - Validates mandatory fields site URL and site name
 # - Shows success message on completion
 input_site_variables() {
+    local include_cloud="$1"
     show_warning_box $include_cloud" gesetzt"
     if [[ "$include_cloud" -ne 1 ]]; then
         return
     fi
-    SITE_URL=$(whiptail --inputbox "Enter the Site UUUUUURL:" 10 60 "" 3>&1 1>&2 2>&3)
+    SITE_URL=$(whiptail --inputbox "Enter the Site URL:" 10 60 "" 3>&1 1>&2 2>&3)
     if [ $? -ne 0 ] || [ -z "$SITE_URL" ]; then
         show_error_box "Site URL is required!"
         exit 1
@@ -933,7 +934,7 @@ select_site_and_load_config() {
             if [[ "$include_cloud" -eq 1 ]]; then
                 log "[INFO] No predefined sites found - starting manual input"
                 # Ask user for manual site input
-                input_site_variables
+                input_site_variables "$include_cloud"
                 return
             else
                 # RAW site mode: no input needed, start directly
