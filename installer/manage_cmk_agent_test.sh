@@ -25,8 +25,8 @@
 ############################################################
 # Author: Sascha Jelinek
 # Company: ADMIN INTELLIGENCE GmbH
-# Date: 2025-10-09
-# Version: 2.0.1
+# Date: 2025-10-30
+# Version: 2.0.2
 # Web: www.admin-intelligence.de
 ############################################################
 # Table of contents
@@ -48,7 +48,7 @@
 # - 8. Main functions and logic
 ############################################################
 
-HEADER="\nADMIN INTELLIGENCE GmbH | v2.0.1 | Sascha Jelinek | 2025-10-09"
+HEADER="\nADMIN INTELLIGENCE GmbH | v2.0.2 | Sascha Jelinek | 2025-10-30"
 
 ############################################################
 # === 1. Global configuration variables ===
@@ -1127,7 +1127,7 @@ check_and_ask_mandatory_fields() {
     # Determine array and mandatory fields based on site type
     if [[ "$site_type" == "cloud" ]]; then
         arr_ref=SITE_CLOUD_LIST
-        local fields=("url" "name")
+        local fields=("url" "name" "register")
     else
         arr_ref=SITE_RAW_LIST
         local fields=("name")
@@ -1146,7 +1146,7 @@ check_and_ask_mandatory_fields() {
     done
 
     # For cloud sites, also check optional update user password field
-    if [[ "$site_type" == "cloud" ]]; then
+    if [[ "$sitetype" == "cloud" ]] && [[ " ${missing_fields[*]} " =~ " url " ]]; then
         if [[ -z "${arr_ref["site_${site_index}_updateuserpass"]}" ]]; then
             missing_fields+=("updateuserpass_optional")
         fi
