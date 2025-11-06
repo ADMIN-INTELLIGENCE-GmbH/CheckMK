@@ -930,9 +930,9 @@ select_site_and_load_config() {
         SITE_PLUGIN_URL="https://monitoring.admin-intelligence.de/checkmk/check_mk/agents/plugins"
     else
         # If no sites defined and cloud inclusion is enabled
-        local include_cloud=$include_cloud
         show_warning_box "1 DEBUG: include_cloud = $include_cloud" # DEBUG: hier steht 0 
         if [[ ${#SITE_CLOUD_LIST[@]} -eq 0 && ${#SITE_RAW_LIST[@]} -eq 0 ]]; then
+            show_warning_box "4 DEBUG: include_cloud = $include_cloud"
             if [[ "$include_cloud" -eq 1 ]]; then
                 log "[INFO] No predefined sites found - starting manual input"
                 # Ask user for manual site input
