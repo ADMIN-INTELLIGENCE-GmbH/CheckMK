@@ -396,7 +396,7 @@ choose_site() {
 # - Validates mandatory fields site URL and site name
 # - Shows success message on completion
 input_site_variables() {
-    show_warning_box $include_cloud
+    show_warning_box $include_cloud" gesetzt"
     if [[ "$include_cloud" -ne 1 ]]; then
         return
     fi
