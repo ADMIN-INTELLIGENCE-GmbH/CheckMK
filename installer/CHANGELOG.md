@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.1.0 - 2025-11-06
+
+*   fixed: removed wrong jump to registration URL after installing plugins
+
 ## v2.0.2 - 2025-10-30
 
 *   added plugin-url to the installation function for plugins
