@@ -400,7 +400,7 @@ input_site_variables() {
     if [[ "$include_cloud" -ne 1 ]]; then
         return
     fi
-    SITE_URL=$(whiptail --inputbox "Enter the Site URL:" 10 60 "" 3>&1 1>&2 2>&3)
+    SITE_URL=$(whiptail --inputbox "Enter the Site UUUUUURL:" 10 60 "" 3>&1 1>&2 2>&3)
     if [ $? -ne 0 ] || [ -z "$SITE_URL" ]; then
         show_error_box "Site URL is required!"
         exit 1
