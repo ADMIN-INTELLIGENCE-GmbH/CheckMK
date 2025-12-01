@@ -19,8 +19,8 @@
 #############################################################
 # Author: Sascha Jelinek
 # Company: ADMIN INTELLIGENCE GmbH
-# Date: 2025-10-07
-# Version: 1.0.8
+# Date: 2025-12-01
+# Version: 1.0.9
 # Web: www.admin-intelligence.de
 #############################################################
 # Changelog
@@ -40,6 +40,8 @@
 # - changed wordings
 # v1.0.8
 # - added comments to each section
+# v1.0.9
+# - grouped unmonitored VMs output by IP with bullet points
 #############################################################
 ok=0
 warn=1
@@ -143,7 +145,7 @@ for pve_host in "${hosts[@]}"; do
         # Add unmonitored VM to tracking map for host IP
         if (( found == 0 )); then
             # Escape parens in VM name for Bash string concatenation
-            not_monitored_vms_by_ip["$pve_host"]+="${vmname} (${vmid}), "
+            not_monitored_vms_by_ip["$pve_host"]+="${vmname}_(${vmid}), "
         fi
     done
 
@@ -157,16 +159,36 @@ if (( ${#not_monitored_vms_by_ip[@]} == 0 )); then
     echo "$ok \"PVE monitored guests\" - All $total_all_vms VMs are monitored"
 else
     total_unmonitored=0
-
     unmonitored_list=""
+    first_ip=1
 
-    # Build summary of unmonitored VMs by host IP
+    # Build grouped multiline summary of unmonitored VMs by host IP
     for ip in "${!not_monitored_vms_by_ip[@]}"; do
-        count=$(echo -n "${not_monitored_vms_by_ip[$ip]}" | awk -F',' '{print NF-1}')
+        # Clean trailing comma and space from VM list
+        vms="${not_monitored_vms_by_ip[$ip]%, }"
+        count=$(echo -n "$vms" | awk -F', ' '{print NF}')
         ((total_unmonitored+=count))
-        unmonitored_list+="$ip: ${not_monitored_vms_by_ip[$ip]} "
+
+        if (( first_ip == 0 )); then
+                unmonitored_list+="\n"
+        fi
+        first_ip=0
+
+        # Add IP header
+        unmonitored_list+="\n$ip:"
+
+        # Format each VM as bullet point under its IP
+        IFS=', ' read -ra vm_array <<< "$vms"
+        for vm in "${vm_array[@]}"; do
+            vm_clean=$(echo "$vm" | sed 's/^ *//;s/ *$//')
+            [[ -z "$vm_clean" ]] && continue
+            name_part=${vm_clean%_*}
+            id_part=${vm_clean##*_}
+            unmonitored_list+="\n- ${name_part} ${id_part}"
+        done
     done
 
-    # Output warning with count and details of unmonitored VMs
-    echo "$crit \"PVE monitored guests\" - $total_unmonitored of $total_all_vms VMs not monitored --- Unmonitored VMs by host IPs: $unmonitored_list"
+    # Output critical with count and grouped multiline details
+    echo "$crit \"PVE monitored guests\" - $total_unmonitored of $total_all_vms VMs not monitored, see Details\n$unmonitored_list"
 fi
+
