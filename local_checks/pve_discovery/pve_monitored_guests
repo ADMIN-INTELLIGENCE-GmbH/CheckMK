@@ -19,8 +19,8 @@
 #############################################################
 # Author: Sascha Jelinek
 # Company: ADMIN INTELLIGENCE GmbH
-# Date: 2025-12-01
-# Version: 1.0.9
+# Date: 2025-12-31
+# Version: 1.1.0
 # Web: www.admin-intelligence.de
 #############################################################
 # Changelog
@@ -42,6 +42,8 @@
 # - added comments to each section
 # v1.0.9
 # - grouped unmonitored VMs output by IP with bullet points
+# v1.1.0
+# - added LXC container to the output
 #############################################################
 ok=0
 warn=1
@@ -94,10 +96,13 @@ done < <($cmk_prefix "echo -e 'GET hosts\nColumns: name alias\nOutputFormat: pla
 # Read all hosts from server file into array
 mapfile -t hosts < "$server_file"
 
-# Initialize VM tracking variables
+# Initialize VM and LXC tracking variables
 declare -A not_monitored_vms_by_ip=()
 declare -A total_vm_count_by_ip=()
+declare -A not_monitored_lxc_by_ip=()
+declare -A total_lxc_count_by_ip=()
 total_all_vms=0
+total_all_lxc=0
 
 # Iterate over all PVE hosts from server_file
 for pve_host in "${hosts[@]}"; do
@@ -152,43 +157,115 @@ for pve_host in "${hosts[@]}"; do
     # Store VM counts for per-host and total statistics
     total_vm_count_by_ip["$pve_host"]=$vm_count_this_host
     ((total_all_vms+=vm_count_this_host))
+    
+    # Query all LXC containers using Proxmox 'pct list' over SSH
+    pct_output=$(timeout 10s ssh -o BatchMode=yes -o ConnectTimeout=5 "$pve_host" pct list 2>/dev/null)
+    rc=$?
+    if [[ $rc -ne 0 || -z "$pct_output" ]]; then
+        # LXC-Ausfall nur loggen, aber nicht den gesamten Check auf warn setzen
+        log "WARN: SSH to $pve_host for pct list failed or no output"
+    else
+        mapfile -t lxc_lines < <(echo "$pct_output" | tail -n +2)
+
+        lxc_count_this_host=0
+
+        for line in "${lxc_lines[@]}"; do
+            [[ -z "$line" ]] && continue
+
+            # pct list: erste Spalte ID, zweite Name
+            lxcid=$(awk '{print $1}' <<< "$line")
+            lxcname=$(awk '{print $3}' <<< "$line")
+
+            # Skip, wenn in Blacklist (gleiche Datei wiederverwendet)
+            if [[ ${blacklist_map["$pve_host:$lxcid"]+_} ]]; then
+                continue
+            fi
+
+            ((lxc_count_this_host++))
+
+            # Check, ob LXC-Name in alias_map (Monitored)
+            found=0
+            for mon_name in "${!alias_map[@]}"; do
+                if [[ "${alias_map[$mon_name]}" == "$lxcname" ]]; then
+                    found=1
+                    break
+                fi
+            done
+
+            # Unmonitored LXC sammeln
+            if (( found == 0 )); then
+                not_monitored_lxc_by_ip["$pve_host"]+="${lxcname}_(${lxcid}), "
+            fi
+        done
+
+        total_lxc_count_by_ip["$pve_host"]=$lxc_count_this_host
+        ((total_all_lxc+=lxc_count_this_host))
+    fi
 done
 
-# If all VMs are monitored, print success status; otherwise show summary of unmonitored
-if (( ${#not_monitored_vms_by_ip[@]} == 0 )); then
-    echo "$ok \"PVE monitored guests\" - All $total_all_vms VMs are monitored"
+# If all guests (VMs + LXC) are monitored, print success status; otherwise show summary
+if (( ${#not_monitored_vms_by_ip[@]} == 0 && ${#not_monitored_lxc_by_ip[@]} == 0 )); then
+    total_all_guests=$((total_all_vms + total_all_lxc))
+    echo "$ok \"PVE monitored guests\" - All $total_all_guests guests (VMs and LXC) are monitored"
 else
     total_unmonitored=0
     unmonitored_list=""
     first_ip=1
 
-    # Build grouped multiline summary of unmonitored VMs by host IP
-    for ip in "${!not_monitored_vms_by_ip[@]}"; do
-        # Clean trailing comma and space from VM list
+    # Build grouped multiline summary of unmonitored VMs and LXC by host IP
+    declare -A all_ips=()
+
+    for ip in "${!not_monitored_vms_by_ip[@]}"; do all_ips["$ip"]=1; done
+    for ip in "${!not_monitored_lxc_by_ip[@]}"; do all_ips["$ip"]=1; done
+
+    for ip in "${!all_ips[@]}"; do
         vms="${not_monitored_vms_by_ip[$ip]%, }"
-        count=$(echo -n "$vms" | awk -F', ' '{print NF}')
-        ((total_unmonitored+=count))
+        lxc="${not_monitored_lxc_by_ip[$ip]%, }"
+
+        count_vms=0
+        count_lxc=0
+
+        if [[ -n "$vms" ]]; then
+            count_vms=$(echo -n "$vms" | awk -F', ' '{print NF}')
+        fi
+        if [[ -n "$lxc" ]]; then
+            count_lxc=$(echo -n "$lxc" | awk -F', ' '{print NF}')
+        fi
+
+        ((total_unmonitored+=count_vms+count_lxc))
 
         if (( first_ip == 0 )); then
-                unmonitored_list+="\n"
+            unmonitored_list+="\n"
         fi
         first_ip=0
 
-        # Add IP header
         unmonitored_list+="\n$ip:"
 
-        # Format each VM as bullet point under its IP
-        IFS=', ' read -ra vm_array <<< "$vms"
-        for vm in "${vm_array[@]}"; do
-            vm_clean=$(echo "$vm" | sed 's/^ *//;s/ *$//')
-            [[ -z "$vm_clean" ]] && continue
-            name_part=${vm_clean%_*}
-            id_part=${vm_clean##*_}
-            unmonitored_list+="\n- ${name_part} ${id_part}"
-        done
+        # VMs als Bulletpoints
+        if [[ -n "$vms" ]]; then
+            IFS=', ' read -ra vm_array <<< "$vms"
+            for vm in "${vm_array[@]}"; do
+                vm_clean=$(echo "$vm" | sed 's/^ *//;s/ *$//')
+                [[ -z "$vm_clean" ]] && continue
+                name_part=${vm_clean%_*}
+                id_part=${vm_clean##*_}
+                unmonitored_list+="\n- VM ${name_part} ${id_part}"
+            done
+        fi
+
+        # LXC als Bulletpoints
+        if [[ -n "$lxc" ]]; then
+            IFS=', ' read -ra lxc_array <<< "$lxc"
+            for c in "${lxc_array[@]}"; do
+                c_clean=$(echo "$c" | sed 's/^ *//;s/ *$//')
+                [[ -z "$c_clean" ]] && continue
+                name_part=${c_clean%_*}
+                id_part=${c_clean##*_}
+                unmonitored_list+="\n- LXC ${name_part} ${id_part}"
+            done
+        fi
     done
 
-    # Output critical with count and grouped multiline details
-    echo "$crit \"PVE monitored guests\" - $total_unmonitored of $total_all_vms VMs not monitored, see Details\n$unmonitored_list"
+    total_all_guests=$((total_all_vms + total_all_lxc))
+    echo "$crit \"PVE monitored guests\" - $total_unmonitored of $total_all_guests guests (VMs and LXC) not monitored, see Details\n$unmonitored_list"
 fi
-
