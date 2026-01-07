@@ -873,7 +873,6 @@ manage_vm_blacklist() {
         if echo "$line" | grep -qE 'VMID|CTID'; then
             continue
         fi
-        local ctid cname cstatus
         ctid=$(awk '{print $1}' <<<"$line")
         cname=$(awk '{print $3}' <<<"$line")
         cstatus=$(awk '{print $2}' <<<"$line")
@@ -890,7 +889,7 @@ manage_vm_blacklist() {
 
     # Present checklist dialog for user to select VMs for blacklisting
     local selected
-    selected=$(whiptail --title "Blacklist PVE VMs on $host" --checklist \
+    selected=$(whiptail --title "Blacklist PVE guests on $host" --checklist \
         "Select VMs/LXCs to blacklist (ignored by discovery):" 22 78 15 \
         "${checklist_params[@]}" 3>&1 1>&2 2>&3) || return 1
 
