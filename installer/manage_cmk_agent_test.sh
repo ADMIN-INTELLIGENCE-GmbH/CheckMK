@@ -833,6 +833,13 @@ manage_vm_blacklist() {
         return 1
     }
 
+    # Get LXC inventory from the Proxmox host
+    local pct_list
+    pct_list=$(get_pct_list "$host") || {
+        whiptail --msgbox "Failed to get 'lxc list' from $host. Check SSH access and try again." 10 60
+        return 1
+    }
+
     # Read current blacklist VM IDs for the host
     mapfile -t existing_blacklist < <(grep "^$host:" "$BLACKLIST_FILE" 2>/dev/null | cut -d: -f2)
 
@@ -859,13 +866,35 @@ manage_vm_blacklist() {
         return 0
     fi
 
+    # Build checklist parameters from the LXC list (skip header)
+    while IFS= read -r line; do
+        [ -z "$line" ] && continue
+        # skip header
+        if echo "$line" | grep -qE 'VMID|CTID'; then
+            continue
+        fi
+        local ctid cname cstatus
+        ctid=$(awk '{print $1}' <<<"$line")
+        cname=$(awk '{print $3}' <<<"$line")
+        cstatus=$(awk '{print $2}' <<<"$line")
+
+        local checked="OFF"
+        for b in "${existingblacklist[@]}"; do
+            if [ "$b" = "$ctid" ]; then
+                checked="ON"
+                break
+            fi
+        done
+        checklistparams+=("$ctid" "CT: $cname ($cstatus)" "$checked")
+    done < <(echo "$pct_list" | tail -n +2)
+
     # Present checklist dialog for user to select VMs for blacklisting
     local selected
     selected=$(whiptail --title "Blacklist PVE VMs on $host" --checklist \
-        "Select VMs to blacklist (ignored by discovery):" 22 78 15 \
+        "Select VMs/LXCs to blacklist (ignored by discovery):" 22 78 15 \
         "${checklist_params[@]}" 3>&1 1>&2 2>&3) || return 1
 
-    # Remove quotes from selected VM IDs
+    # Remove quotes from selected IDs
     IFS=' ' read -r -a selected_array <<< "$selected"
     for i in "${!selected_array[@]}"; do
         selected_array[$i]="${selected_array[$i]//\"/}"
@@ -2465,6 +2494,14 @@ setup_pve_backup_config_cronjob() {
 get_qm_list() {
     local host="$1"
     ssh -o BatchMode=yes -o ConnectTimeout=5 -o StrictHostKeyChecking=no "$host" qm list 2>/dev/null
+}
+
+# Function: Retrieve LXC list by executing 'pct list' command on remote PVE host via SSH
+# - Uses SSH with batch mode, 5 second timeout, no strict host key checks
+# - Returns output of 'pct list' command or empty string on failure
+get_pct_list() {
+    local host="$1"
+    ssh -o BatchMode=yes -o ConnectTimeout=5 -o StrictHostKeyChecking=no "$host" pct list 2>/dev/null
 }
 
 # Function: Check if any Checkmk site is active
