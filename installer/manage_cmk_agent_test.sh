@@ -870,12 +870,12 @@ manage_vm_blacklist() {
     while IFS= read -r line; do
         [ -z "$line" ] && continue
         # skip header
-        if echo "$line" | grep -qE 'VMID|CTID'; then
+        if [[ "$line" =~ ^VMID[[:space:]] ]]; then
             continue
         fi
-        ctid=$(awk '{print $1}' <<<"$line")
-        cname=$(awk '{print $3}' <<<"$line")
-        cstatus=$(awk '{print $2}' <<<"$line")
+        ctid=$(awk '{print $1}' <<< "$line")    # 112 / 114
+        cstatus=$(awk '{print $2}' <<< "$line") # stopped / running
+        cname=$(awk '{for (i=4;i<=NF;i++) printf "%s%s", $i, (i<NF?" ":""); print ""}' <<< "$line")
 
         local checked="OFF"
         for b in "${existingblacklist[@]}"; do
