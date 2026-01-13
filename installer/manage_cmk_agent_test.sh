@@ -878,10 +878,7 @@ manage_vm_blacklist() {
         cname=$(
             awk '{
                 for (i=4; i<=NF; i++) {
-                    if ($i != "") {
-                        start=i
-                        break
-                    }
+                    if ($i != "") { start=i; break }
                 }
                 for (i=start; i<=NF; i++) {
                     printf "%s%s", $i, (i<NF?" ":"")
