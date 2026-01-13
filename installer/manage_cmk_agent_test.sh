@@ -878,13 +878,13 @@ manage_vm_blacklist() {
         cname=$(awk '{for (i=4;i<=NF;i++) printf "%s%s", $i, (i<NF?" ":""); print ""}' <<< "$line")
 
         local checked="OFF"
-        for b in "${existingblacklist[@]}"; do
+        for b in "${existing_blacklist[@]}"; do
             if [ "$b" = "$ctid" ]; then
                 checked="ON"
                 break
             fi
         done
-        checklistparams+=("$ctid" "CT: $cname ($cstatus)" "$checked")
+        checklist_params+=("$ctid" "CT: $cname ($cstatus)" "$checked")
     done < <(echo "$pct_list" | tail -n +2)
 
     # Present checklist dialog for user to select VMs for blacklisting
