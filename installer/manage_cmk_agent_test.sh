@@ -875,7 +875,20 @@ manage_vm_blacklist() {
         fi
         ctid=$(awk '{print $1}' <<< "$line")    # 112 / 114
         cstatus=$(awk '{print $2}' <<< "$line") # stopped / running
-        cname=$(awk '{for (i=4;i<=NF;i++) printf "%s%s", $i, (i<NF?" ":""); print ""}' <<< "$line")
+        cname=$(
+            awk '{
+                # Felder 1–3 sind VMID, Status, Lock
+                for (i=4; i<=NF; i++) {
+                    if ($i != "") {
+                        start=i
+                        break
+                    }
+                }
+                for (i=start; i<=NF; i++) {
+                    printf "%s%s", $i, (i<NF?" ":"")
+                }
+            }' <<< "$line"
+        )
 
         local checked="OFF"
         for b in "${existing_blacklist[@]}"; do
@@ -884,7 +897,7 @@ manage_vm_blacklist() {
                 break
             fi
         done
-        checklist_params+=("$ctid" "CT: $cname ($cstatus)" "$checked")
+        checklist_params+=("$ctid" "CT: $cname: $cstatus" "$checked")
     done < <(echo "$pct_list" | tail -n +2)
 
     # Present checklist dialog for user to select VMs for blacklisting
