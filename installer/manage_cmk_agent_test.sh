@@ -877,7 +877,6 @@ manage_vm_blacklist() {
         cstatus=$(awk '{print $2}' <<< "$line")
         cname=$(
             awk '{
-                # Felder 1–3 sind VMID, Status, Lock
                 for (i=4; i<=NF; i++) {
                     if ($i != "") {
                         start=i
