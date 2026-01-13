@@ -873,8 +873,8 @@ manage_vm_blacklist() {
         if [[ "$line" =~ ^VMID[[:space:]] ]]; then
             continue
         fi
-        ctid=$(awk '{print $1}' <<< "$line")    # 112 / 114
-        cstatus=$(awk '{print $2}' <<< "$line") # stopped / running
+        ctid=$(awk '{print $1}' <<< "$line")
+        cstatus=$(awk '{print $2}' <<< "$line")
         cname=$(
             awk '{
                 # Felder 1–3 sind VMID, Status, Lock
