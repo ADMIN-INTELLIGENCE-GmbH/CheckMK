@@ -20,8 +20,8 @@
 ############################################################
 # Author: Sascha Jelinek
 # Company: ADMIN INTELLIGENCE GmbH
-# Date: 2025-09-18
-# Version: 2.3.1
+# Date: 2026-01-14
+# Version: 2.4.0
 # Web: www.admin-intelligence.de
 ############################################################
 
@@ -39,9 +39,31 @@ check_name() {
 
 check_running_processes() {
     # Prüfen ob borg_backup.sh läuft
-    if pgrep -f "borg_backup.sh" >/dev/null 2>&1; then
-        echo "${STATE_OK} \"$(check_name)\" - Backup running... please stand by. Elevator music is playing until then :-)"
-        exit "${STATE_OK}"
+    backup_pid=$(pgrep -f "borg_backup.sh" | head -n1)
+    if [ -n "$backup_pid" ]; then
+        # Prozess-Startzeit in Sekunden seit Epoch auslesen
+        start_epoch=$(ps -p "$backup_pid" -o lstart= | xargs -I{} date -d "{}" +%s)
+        now_epoch=$(date +%s)
+        runtime_sec=$(( now_epoch - start_epoch ))
+
+        # Laufzeit in Stunden und Minuten umrechnen
+        hours=$(( runtime_sec / 3600 ))
+        mins=$(( (runtime_sec % 3600) / 60 ))
+
+        # Schwellwerte prüfen (neu: CRIT bei >=24h)
+        if [ $runtime_sec -ge 86400 ]; then  # 24h = 86400 Sekunden
+            state=$STATE_CRITICAL
+            msg="CRITICAL - borg_backup.sh running for ${hours}h ${mins}m (too long >24h), please check!"
+        elif [ $hours -ge 4 ]; then
+            state=$STATE_WARNING
+            msg="WARNING - borg_backup.sh running for ${hours}h ${mins}m, still running... please stand by."
+        else
+            state=$STATE_OK
+            msg="borg_backup.sh running for ${hours}h ${mins}m, please stand by. Elevator music is playing until then :-)"
+        fi
+
+        echo "${state} \"$(check_name)\" - $msg"
+        exit $state
     fi
 
     # Prüfen ob /usr/bin/borg compact läuft und Laufzeit ermitteln

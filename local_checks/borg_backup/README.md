@@ -119,6 +119,7 @@ The service entry includes:
     *   refactored variable handling
 *   **v2.3.0**: forced update (version bump)
 *   **v2.3.1**: check for symbolic links in backup paths
+*   **v2.4.0**: added runtime check with warning when backup process runs for >4h and crit when >24h
 
 # Author
 
