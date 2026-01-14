@@ -21,7 +21,7 @@
 # Author: Sascha Jelinek
 # Company: ADMIN INTELLIGENCE GmbH
 # Date: 2026-01-14
-# Version: 2.4.0
+# Version: 2.5.0
 # Web: www.admin-intelligence.de
 ############################################################
 
@@ -93,6 +93,58 @@ check_running_processes() {
         echo "${state} \"$(check_name)\" - $msg"
         exit $state
     fi
+}
+
+check_nextcloud_datadirectory() {
+    local nc_configs=()
+    local data_dir=""
+    local backup_paths_array=()
+    local mountpoint_path=""
+    
+    # Nextcloud DataDir finden
+    mapfile -t nc_configs < <(find /var/www /srv /opt -maxdepth 4 -type f -name "config.php" 2>/dev/null | head -5)
+    
+    for nc_config in "${nc_configs[@]}"; do
+        if grep -q "'datadirectory'" "$nc_config" 2>/dev/null && \
+           grep -q "'instanceid'" "$nc_config" 2>/dev/null; then
+            
+            data_dir=$(grep "'datadirectory'" "$nc_config" 2>/dev/null | \
+                       head -1 | sed -n "s/.*['\"]\([^'\" ]*\)['\"].*/\1/p")
+            [ -n "$data_dir" ] && break
+        fi
+    done
+    
+    [ -z "$data_dir" ] && return 0
+    
+    # MOUNTPOINT des DataDir finden
+    if mountpoint "$data_dir" 2>/dev/null; then
+        mountpoint_path="$data_dir"
+    elif mountpoint "$(dirname "$data_dir")" 2>/dev/null; then
+        mountpoint_path="$(dirname "$data_dir")"
+    fi
+    
+    # BACKUP_PATHS Array
+    IFS=' ' read -ra backup_paths_array <<< "$BACKUP_PATHS"
+    
+    for backup_path in "${backup_paths_array[@]}"; do
+        # 1. Exakter Match
+        if [ "$backup_path" = "$data_dir" ]; then
+            return 0
+        fi
+        
+        # 2. Mountpoint exakt gesichert
+        if [ -n "$mountpoint_path" ] && [ "$backup_path" = "$mountpoint_path" ]; then
+            return 0
+        fi
+        
+        # 3. /var/www/ deckt ab (nur wenn KEIN Mountpoint)
+        if [ -z "$mountpoint_path" ] && [[ "$backup_path" == "/var/www" ]] && [[ "$data_dir" == "/var/www/"* ]]; then
+            return 0
+        fi
+    done
+    
+    echo "${STATE_CRITICAL} \"$(check_name)\" - CRITICAL - Nextcloud DataDir '$data_dir' $([ -n "$mountpoint_path" ] && echo "(Mountpoint: $mountpoint_path)") NOT in BORG config!"
+    exit $STATE_CRITICAL
 }
 
 error() {
@@ -191,30 +243,67 @@ extract_backup_paths() {
     elif [ -f "/backup/borg_backup.sh" ]; then
         script_file="/backup/borg_backup.sh"
     else
-        echo ""   # Kein Skript gefunden, leere Ausgabe
+        echo ""
         return 1
     fi
 
-    local borg_command
-    borg_command=$(awk '/borg create/ {
-        printf "%s", $0
-        while (substr($0, length, 1)=="\\") {
-            getline
-            sub(/^[ \t]+/, "", $0)
-            printf " %s", $0
-        }
-        print ""
-    }' "$script_file")
+    local borg_command=""
+    local line=""
 
-    # Extrahiere alle Pfade (Argumente, die mit / beginnen)
-    local paths
-    paths=$(awk '{
-        for(i=1; i<=NF; i++) {
-            if ($i ~ /^\//) printf "%s ", $i
-        }
-    }' <<< "$borg_command")
+    # 1) Erste NICHT KOMMENTIERTE borg create Zeile + Continuations
+    while IFS= read -r line; do
+        # Vollständig leere oder kommentierte Zeilen überspringen
+        case "$line" in
+            ''|[[:space:]]'#'*|'#'*) continue ;;
+        esac
 
-    echo "$paths"
+        # Falls Zeile nach Trim mit # beginnt → ebenfalls ignorieren
+        if [ -n "$(echo "$line" | sed 's/^[[:space:]]*//')" ] &&
+           [ "$(echo "$line" | sed 's/^[[:space:]]*//' | cut -c1)" = "#" ]; then
+            continue
+        fi
+
+        # nur Zeilen mit "borg create"
+        case "$line" in
+            *"borg "*create*|*borg*' create '*)
+                borg_command="$line"
+                # Continuations einsammeln
+                while [ -n "$borg_command" ] && [ "${borg_command: -1}" = "\\" ]; do
+                    borg_command="${borg_command%\\}"
+                    IFS= read -r line || break
+                    # auch hier: komplett kommentierte Folgezeilen ignorieren
+                    case "$line" in
+                        ''|[[:space:]]'#'*|'#'*) continue ;;
+                    esac
+                    borg_command+=" $line"
+                done
+                break
+                ;;
+        esac
+    done < "$script_file"
+
+    [ -z "$borg_command" ] && echo "" && return 1
+
+    # 2) Pfade extrahieren
+    local paths=""
+    local word
+    for word in $borg_command; do
+        # Quotes entfernen
+        word=${word%\"}; word=${word#\"}
+        word=${word%\'}; word=${word#\'}
+
+        # Optionen/Repo überspringen
+        case "$word" in
+            --*|*::*) continue ;;
+        esac
+
+        # nur absolute Pfade
+        case "$word" in
+            /*) paths+=" $word" ;;
+        esac
+    done
+
+    echo "${paths# }"
 }
 
 check_for_symlinks() {
@@ -272,6 +361,7 @@ read_backup_vars
 export BORG_REPO BORG_PASSPHRASE
 BACKUP_PATHS=$(extract_backup_paths)
 check_for_symlinks
+check_nextcloud_datadirectory
 check_running_processes
 
 last="$(${BORG} list --sort timestamp --last 1 --format '{time}' 2>&1)"
