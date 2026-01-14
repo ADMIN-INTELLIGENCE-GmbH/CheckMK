@@ -21,7 +21,7 @@
 # Author: Sascha Jelinek
 # Company: ADMIN INTELLIGENCE GmbH
 # Date: 2026-01-14
-# Version: 2.5.0
+# Version: 2.5.1
 # Web: www.admin-intelligence.de
 ############################################################
 
@@ -117,9 +117,9 @@ check_nextcloud_datadirectory() {
     [ -z "$data_dir" ] && return 0
     
     # MOUNTPOINT des DataDir finden
-    if mountpoint "$data_dir" 2>/dev/null; then
+    if mountpoint "$data_dir" >/dev/null 2>&1; then
         mountpoint_path="$data_dir"
-    elif mountpoint "$(dirname "$data_dir")" 2>/dev/null; then
+    elif mountpoint "$(dirname "$data_dir")" >/dev/null 2>&1; then
         mountpoint_path="$(dirname "$data_dir")"
     fi
     

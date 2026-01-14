@@ -121,6 +121,7 @@ The service entry includes:
 *   **v2.3.1**: check for symbolic links in backup paths
 *   **v2.4.0**: added runtime check with warning when backup process runs for >4h and crit when >24h
 *   **v2.5.0**: new feature to check if nextcloud datadirectory is present in BORG config and checks if it is a mountpoint
+*   **v2.5.1**: removed debugging output messages
 
 # Author
 
