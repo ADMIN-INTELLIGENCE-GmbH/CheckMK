@@ -1,5 +1,10 @@
 # Changelog
 
+## v2.1.1 - 2026-01-27
+
+*   fixed jumpmarks of PVE blacklist menu
+*   added CT / LXC to the PVE blacklist menu
+
 ## v2.1.0 - 2025-11-06
 
 *   fixed: removed wrong jump to registration URL after installing plugins

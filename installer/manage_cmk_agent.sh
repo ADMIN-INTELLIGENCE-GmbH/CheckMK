@@ -25,8 +25,8 @@
 ############################################################
 # Author: Sascha Jelinek
 # Company: ADMIN INTELLIGENCE GmbH
-# Date: 2025-11-06
-# Version: 2.1.0
+# Date: 2026-01-27
+# Version: 2.1.1
 # Web: www.admin-intelligence.de
 ############################################################
 # Table of contents
@@ -48,7 +48,7 @@
 # - 8. Main functions and logic
 ############################################################
 
-HEADER="\nADMIN INTELLIGENCE GmbH | v2.1.0 | Sascha Jelinek | 2025-11-06"
+HEADER="\nADMIN INTELLIGENCE GmbH | v2.1.1 | Sascha Jelinek | 2026-01-27"
 
 ############################################################
 # === 1. Global configuration variables ===
@@ -833,6 +833,13 @@ manage_vm_blacklist() {
         return 1
     }
 
+    # Get LXC inventory from the Proxmox host
+    local pct_list
+    pct_list=$(get_pct_list "$host") || {
+        whiptail --msgbox "Failed to get 'lxc list' from $host. Check SSH access and try again." 10 60
+        return 1
+    }
+
     # Read current blacklist VM IDs for the host
     mapfile -t existing_blacklist < <(grep "^$host:" "$BLACKLIST_FILE" 2>/dev/null | cut -d: -f2)
 
@@ -859,13 +866,35 @@ manage_vm_blacklist() {
         return 0
     fi
 
+    # Build checklist parameters from the LXC list (skip header)
+    while IFS= read -r line; do
+        [ -z "$line" ] && continue
+        # skip header
+        if [[ "$line" =~ ^VMID[[:space:]] ]]; then
+            continue
+        fi
+        ctid=$(awk '{print $1}' <<< "$line")
+        cstatus=$(awk '{print $2}' <<< "$line")
+        cname=$(awk '{print $3}' <<< "$line")
+        #cname=$(awk '{for (i=4; i<=NF; i++) printf "%s%s", $i, (i<NF?" ":""); }' <<< "$line")
+
+        local checked="OFF"
+        for b in "${existing_blacklist[@]}"; do
+            if [ "$b" = "$ctid" ]; then
+                checked="ON"
+                break
+            fi
+        done
+        checklist_params+=("$ctid" "CT: $cname: $cstatus" "$checked")
+    done < <(echo "$pct_list" | tail -n +2)
+
     # Present checklist dialog for user to select VMs for blacklisting
     local selected
-    selected=$(whiptail --title "Blacklist PVE VMs on $host" --checklist \
-        "Select VMs to blacklist (ignored by discovery):" 22 78 15 \
+    selected=$(whiptail --title "Blacklist PVE guests on $host" --checklist \
+        "Select VMs/LXCs to blacklist (ignored by discovery):" 22 78 15 \
         "${checklist_params[@]}" 3>&1 1>&2 2>&3) || return 1
 
-    # Remove quotes from selected VM IDs
+    # Remove quotes from selected IDs
     IFS=' ' read -r -a selected_array <<< "$selected"
     for i in "${!selected_array[@]}"; do
         selected_array[$i]="${selected_array[$i]//\"/}"
@@ -889,7 +918,7 @@ configure_pve_local_check() {
     while (( continue_config )); do
         # Prompt to select a Proxmox VE host
         local pve_host
-        pve_host=$(select_pve_host) || return
+        pve_host=$(select_pve_host) || return 1
         if [[ -z "$pve_host" ]]; then
             whiptail --msgbox "No Proxmox VE Host selected. Aborting." 10 50
             return
@@ -900,8 +929,7 @@ configure_pve_local_check() {
 
         # Ask user whether to configure another host
         whiptail --yesno "Configure another Proxmox VE host?" 10 50
-        continue_config=$?
-        if (( continue_config != 0 )); then
+        if [[ $? -ne 0 ]]; then
             break
         fi
     done
@@ -2465,6 +2493,14 @@ setup_pve_backup_config_cronjob() {
 get_qm_list() {
     local host="$1"
     ssh -o BatchMode=yes -o ConnectTimeout=5 -o StrictHostKeyChecking=no "$host" qm list 2>/dev/null
+}
+
+# Function: Retrieve LXC list by executing 'pct list' command on remote PVE host via SSH
+# - Uses SSH with batch mode, 5 second timeout, no strict host key checks
+# - Returns output of 'pct list' command or empty string on failure
+get_pct_list() {
+    local host="$1"
+    ssh -o BatchMode=yes -o ConnectTimeout=5 -o StrictHostKeyChecking=no "$host" pct list 2>/dev/null
 }
 
 # Function: Check if any Checkmk site is active
