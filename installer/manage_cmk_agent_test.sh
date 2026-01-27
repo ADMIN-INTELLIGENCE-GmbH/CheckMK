@@ -918,7 +918,7 @@ configure_pve_local_check() {
     while (( continue_config )); do
         # Prompt to select a Proxmox VE host
         local pve_host
-        pve_host=$(select_pve_host) || return
+        pve_host=$(select_pve_host) || return 1
         if [[ -z "$pve_host" ]]; then
             whiptail --msgbox "No Proxmox VE Host selected. Aborting." 10 50
             return
@@ -929,8 +929,7 @@ configure_pve_local_check() {
 
         # Ask user whether to configure another host
         whiptail --yesno "Configure another Proxmox VE host?" 10 50
-        continue_config=$?
-        if (( continue_config != 0 )); then
+        if [[ $? -ne 0 ]]; then
             break
         fi
     done
