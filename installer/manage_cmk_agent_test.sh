@@ -875,16 +875,8 @@ manage_vm_blacklist() {
         fi
         ctid=$(awk '{print $1}' <<< "$line")
         cstatus=$(awk '{print $2}' <<< "$line")
-        cname=$(
-            awk '{
-                for (i=4; i<=NF; i++) {
-                    if ($i != "") { start=i; break }
-                }
-                for (i=start; i<=NF; i++) {
-                    printf "%s%s", $i, (i<NF?" ":"")
-                }
-            }' <<< "$line"
-        )
+        cname=$(awk '{print $3}' <<< "$line")
+        #cname=$(awk '{for (i=4; i<=NF; i++) printf "%s%s", $i, (i<NF?" ":""); }' <<< "$line")
 
         local checked="OFF"
         for b in "${existing_blacklist[@]}"; do
