@@ -608,11 +608,11 @@ install_local_checks_menu() {
         ["check_sql_dump"]="https://raw.githubusercontent.com/ADMIN-INTELLIGENCE-GmbH/CheckMK/main/local_checks/sql_dump/check_sql_dump"
         ["reboot_required"]="https://raw.githubusercontent.com/ADMIN-INTELLIGENCE-GmbH/CheckMK/refs/heads/main/local_checks/reboot_required/reboot_required"
         ["pve_monitored_guests"]="https://raw.githubusercontent.com/ADMIN-INTELLIGENCE-GmbH/CheckMK/refs/heads/main/local_checks/pve_discovery/pve_monitored_guests"
-        ["caddy_metrics"]="https://raw.githubusercontent.com/ADMIN-INTELLIGENCE-GmbH/CheckMK/refs/heads/main/local_checks/caddy/caddy_metrics.py"
+        ["caddy_metrics.py"]="https://raw.githubusercontent.com/ADMIN-INTELLIGENCE-GmbH/CheckMK/refs/heads/main/local_checks/caddy/caddy_metrics.py"
     )
     # Add caddy check ist caddy is running
     if [[ $is_caddy -eq 1 ]]; then
-        LOCAL_CHECKS["caddy_metrics"]="https://raw.githubusercontent.com/ADMIN-INTELLIGENCE-GmbH/CheckMK/refs/heads/main/local_checks/caddy/caddy_metrics.py"
+        LOCAL_CHECKS["caddy_metrics.py"]="https://raw.githubusercontent.com/ADMIN-INTELLIGENCE-GmbH/CheckMK/refs/heads/main/local_checks/caddy/caddy_metrics.py"
     fi
     # Add PVE backup config check if running on Proxmox VE
     if [[ $is_pve -eq 1 ]]; then
@@ -628,7 +628,7 @@ install_local_checks_menu() {
         ["pve_monitored_guests"]="| PVE monitored guests"
     )
     if [[ $is_caddy -eq 1 ]]; then
-        DESCRIPTIONS["caddy_metrics"]="| Caddy metrics monitoring"
+        DESCRIPTIONS["caddy_metrics.py"]="| Caddy metrics monitoring"
     fi
     if [[ $is_pve -eq 1 ]]; then
         DESCRIPTIONS["pve_backup_config_check"]="| PVE backup config monitoring"
