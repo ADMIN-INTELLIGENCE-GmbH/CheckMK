@@ -580,6 +580,7 @@ backupfile_check() {
 
 # Local checks installation menu
 # - Detect if Proxmox VE (PVE) environment is present
+# - Detect if Caddy is present
 # - Defines URLs of available local check scripts, adds PVE-specific check if applicable
 # - Detects currently installed local checks in the agent directory
 # - Builds checklist dialog with installed checks pre-selected
@@ -594,6 +595,12 @@ install_local_checks_menu() {
         is_pve=1
     fi
 
+    # Detect Caddy presence
+    local is_caddy=0
+    if command -v caddy >/dev/null 2>&1 || pgrep -x caddy >/dev/null 2>&1; then
+        is_caddy=1
+    fi
+
     # URLs of local check scripts available for installation
     declare -A LOCAL_CHECKS=(
         ["98_local_checks_bakery"]="https://raw.githubusercontent.com/ADMIN-INTELLIGENCE-GmbH/CheckMK/refs/heads/main/local_checks/local_checks_bakery/98_local_checks_bakery"
@@ -601,7 +608,12 @@ install_local_checks_menu() {
         ["check_sql_dump"]="https://raw.githubusercontent.com/ADMIN-INTELLIGENCE-GmbH/CheckMK/main/local_checks/sql_dump/check_sql_dump"
         ["reboot_required"]="https://raw.githubusercontent.com/ADMIN-INTELLIGENCE-GmbH/CheckMK/refs/heads/main/local_checks/reboot_required/reboot_required"
         ["pve_monitored_guests"]="https://raw.githubusercontent.com/ADMIN-INTELLIGENCE-GmbH/CheckMK/refs/heads/main/local_checks/pve_discovery/pve_monitored_guests"
+        ["caddy_metrics"]="https://raw.githubusercontent.com/ADMIN-INTELLIGENCE-GmbH/CheckMK/refs/heads/main/local_checks/caddy/caddy_metrics.py"
     )
+    # Add caddy check ist caddy is running
+    if [[ $is_caddy -eq 1 ]]; then
+        LOCAL_CHECKS["caddy_metrics"]="https://raw.githubusercontent.com/ADMIN-INTELLIGENCE-GmbH/CheckMK/refs/heads/main/local_checks/caddy/caddy_metrics.py"
+    fi
     # Add PVE backup config check if running on Proxmox VE
     if [[ $is_pve -eq 1 ]]; then
         LOCAL_CHECKS["pve_backup_config_check"]="https://raw.githubusercontent.com/ADMIN-INTELLIGENCE-GmbH/CheckMK/refs/heads/main/local_checks/pve_backup_config/pve_backup_config_check"
@@ -615,6 +627,9 @@ install_local_checks_menu() {
         ["reboot_required"]="| Reboot required"
         ["pve_monitored_guests"]="| PVE monitored guests"
     )
+    if [[ $is_caddy -eq 1 ]]; then
+        DESCRIPTIONS["caddy_metrics"]="| Caddy metrics monitoring"
+    fi
     if [[ $is_pve -eq 1 ]]; then
         DESCRIPTIONS["pve_backup_config_check"]="| PVE backup config monitoring"
     fi
@@ -625,7 +640,12 @@ install_local_checks_menu() {
     local installed_local_checks=()
     if [[ -d "$LOCAL_CHECKS_DIR" ]]; then
         for f in "$LOCAL_CHECKS_DIR"/*; do
-            [[ -f "$f" ]] && installed_local_checks+=("$(basename "$f")")
+            [[ -f "$f" ]] || continue
+            # ignore JSON files
+            if [[ "$(basename "$f")" == *.json ]]; then
+                continue
+            fi
+            installed_local_checks+=("$(basename "$f")")
         done
     fi
 
