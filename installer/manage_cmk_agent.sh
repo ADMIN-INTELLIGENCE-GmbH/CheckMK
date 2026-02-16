@@ -25,8 +25,8 @@
 ############################################################
 # Author: Sascha Jelinek
 # Company: ADMIN INTELLIGENCE GmbH
-# Date: 2026-01-27
-# Version: 2.1.1
+# Date: 2026-02-16
+# Version: 2.1.2
 # Web: www.admin-intelligence.de
 ############################################################
 # Table of contents
@@ -2422,9 +2422,23 @@ EOF
 install_local_check_file() {
     local check="$1"
     local url="$2"
-    local local_file="$LOCAL_CHECKS_DIR/$check"
+    local local_dir="$LOCAL_CHECKS_DIR"
+    local local_file="${local_dir}/${check}"
 
-    mkdir -p "$LOCAL_CHECKS_DIR"
+    # special handling for check_borg_backup: only every 1800 seconds
+    if [ "$check" = "check_borg_backup" ]; then
+        local_dir="${LOCAL_CHECKS_DIR}/1800"
+        mkdir -p "$local_dir"
+
+        # if script exists in base folder, move to subfolder
+        if [ -f "${LOCAL_CHECKS_DIR}/${check}" ]; then
+            mv "${LOCAL_CHECKS_DIR}/${check}" "${local_dir}/${check}"
+        fi
+
+        local_file="${local_dir}/${check}"
+    fi
+
+    mkdir -p "$local_dir"
 
     if curl -fsSL "$url" -o "$local_file"; then
         sed -i 's/\r$//' "$local_file"  # Remove Windows carriage returns if any

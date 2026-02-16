@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.1.2 - 2026-02-16
+
+*   added handling vor script check\_borg\_backup and put it into the subfolder 1800 for asynchronous execution
+
 ## v2.1.1 - 2026-01-27
 
 *   fixed jumpmarks of PVE blacklist menu
