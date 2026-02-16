@@ -73,6 +73,7 @@ List of plugins:
 
 *   **v1.0.1:** Output language changed to English
 *   **v1.0.2:** Adjusted wordings and CSV URL
+*   **v1.0.3:** added search for local checks in subfolders in case of asynchronous checks
 
 # Author
 

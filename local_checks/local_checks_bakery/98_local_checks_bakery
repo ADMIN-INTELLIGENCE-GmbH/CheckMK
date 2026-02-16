@@ -19,8 +19,8 @@
 ############################################################
 # Author: Sascha Jelinek
 # Company: ADMIN INTELLIGENCE GmbH
-# Date: 2025-08-06
-# Version: 1.0.2
+# Date: 2026-02-16
+# Version: 1.0.3
 # Web: www.admin-intelligence.de
 ############################################################
 
@@ -58,10 +58,11 @@ do
     # Header überspringen
     if [[ "$name" == "name" ]]; then continue; fi
 
-    SCRIPT_LOCAL="$AGENT_LOCAL/$(basename "$url")"
+    SCRIPT_BASENAME="$(basename "$url")"
+    SCRIPT_LOCAL="$(find "$AGENT_LOCAL" -type f -name "$SCRIPT_BASENAME" 2>/dev/null | head -n1)"
 
     # Prüfen, ob lokal vorhanden
-    if [[ ! -f "$SCRIPT_LOCAL" ]]; then
+    if [[ -z "$SCRIPT_LOCAL" || ! -f "$SCRIPT_LOCAL" ]]; then
       # Nicht installieren, nur prüfen
       continue
     fi
@@ -102,7 +103,7 @@ do
         # Remote Version ist größer: Update durchführen
         echo "$REMOTE_RAW" > "$SCRIPT_LOCAL"
         chmod 755 "$SCRIPT_LOCAL"
-        DETAILS_LINES+=("$name: updated from $LOCAL_VER to $REMOTE_VER")
+        DETAILS_LINES+=("$name: updated from $LOCAL_VER to $REMOTE_VER (in $(dirname "$SCRIPT_LOCAL"))")
         ((updates++))
         if [[ "$name" == "pve_backup_config_check" ]]; then
             CRON_SCRIPT_URL="https://raw.githubusercontent.com/ADMIN-INTELLIGENCE-GmbH/CheckMK/refs/heads/main/local_checks/pve_backup_config/check_pve_backup_config_cron.sh"
