@@ -706,7 +706,7 @@ install_local_checks_menu() {
 
     # If caddy_metrics.py was installed, show a hint to run the Caddy configuration
     if [[ " ${selected_local_checks[*]} " == *" caddy_metrics.py "* ]]; then
-        show_info_box "The local check \"caddy_metrics.py\" has been installed.\n\nPlease open the \"Local Checks Configuration\" menu and run the Caddy configuration to enable the global metrics block in your Caddyfile."
+        show_info_box_xl "The local check \"caddy_metrics.py\" has been installed.\n\nPlease open the \"Local Checks Configuration\" menu and run the Caddy configuration to enable the global metrics block in your Caddyfile."
     fi
 
     # Remove previously installed but now unselected local checks
@@ -2662,11 +2662,22 @@ configure_caddy_metrics_block() {
     # Reload Caddy so configuration changes take effect
     if command -v systemctl >/dev/null 2>&1; then
         # Try to reload the systemd service, fall back to restart on failure
-        systemctl reload caddy 2>/dev/null || systemctl restart caddy
+        if ! systemctl reload caddy 2>/dev/null; then
+            if ! systemctl restart caddy 2>/dev/null; then
+                show_error_box "Caddyfile updated, but reloading the Caddy service failed."
+                return 1
+            fi
+        fi
     else
         # Fallback if systemd is not available, use caddy CLI reload
-        caddy reload --config "$CADDYFILE"
+        if ! caddy reload --config "$CADDYFILE"; then
+            show_error_box "Caddyfile updated, but \"caddy reload\" failed."
+            return 1
+        fi
     fi
+
+    # Show success dialog when everything completed successfully
+    show_success_box "Caddy configuration was successfully updated.\n\nThe global metrics block is now active, and Caddy has been reloaded."
 }
 
 ############################################################
