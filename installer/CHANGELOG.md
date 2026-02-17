@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.1.3 - 2026-02-17
+
+*   added caddy local check installation and configuration
+
 ## v2.1.2 - 2026-02-16
 
 *   added handling vor script check\_borg\_backup and put it into the subfolder 1800 for asynchronous execution
