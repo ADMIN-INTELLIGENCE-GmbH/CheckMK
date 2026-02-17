@@ -25,8 +25,8 @@
 ############################################################
 # Author: Sascha Jelinek
 # Company: ADMIN INTELLIGENCE GmbH
-# Date: 2025-11-06
-# Version: 2.1.0
+# Date: 2026-02-16
+# Version: 2.1.2
 # Web: www.admin-intelligence.de
 ############################################################
 # Table of contents
@@ -48,7 +48,7 @@
 # - 8. Main functions and logic
 ############################################################
 
-HEADER="\nADMIN INTELLIGENCE GmbH | v2.1.0 | Sascha Jelinek | 2025-11-06"
+HEADER="\nADMIN INTELLIGENCE GmbH | v2.1.1 | Sascha Jelinek | 2026-01-27"
 
 ############################################################
 # === 1. Global configuration variables ===
@@ -698,6 +698,11 @@ install_local_checks_menu() {
         setup_pve_backup_config_cronjob
     fi
 
+    # If caddy_metrics.py was installed, show a hint to run the Caddy configuration
+    if [[ " ${selected_local_checks[*]} " == *" caddy_metrics.py "* ]]; then
+        show_info_box "The local check \"caddy_metrics.py\" has been installed.\n\nPlease open the \"Local Checks Configuration\" menu and run the Caddy configuration to enable the global metrics block in your Caddyfile."
+    fi
+
     # Remove previously installed but now unselected local checks
     for check in "${installed_local_checks[@]}"; do
         local still_selected=0
@@ -743,6 +748,15 @@ configure_local_checks_menu() {
             MENU_ITEMS+=("Configure_PVE" "Configure PVE VM Blacklist Local Check")
         fi
 
+        # Add Caddy configuration option if Caddy is present
+        local is_caddy=0
+        if command -v caddy >/dev/null 2>&1 || pgrep -x caddy >/dev/null 2>&1; then
+            is_caddy=1
+        fi
+        if [[ $is_caddy -eq 1 ]]; then
+            MENU_ITEMS+=("Configure_Caddy" "Configure Caddy global metrics block")
+        fi
+
         MENU_ITEMS+=("Return" "Return to previous menu")
 
         OPTION=$(whiptail --title "Local Checks Configuration" --menu \
@@ -752,6 +766,9 @@ configure_local_checks_menu() {
         case "$OPTION" in
             Configure_PVE)
                 configure_pve_local_check
+                ;;
+            Configure_Caddy)
+                configure_caddy_metrics_block
                 ;;
             Return|"")
                 main
@@ -1406,6 +1423,7 @@ install_raw() {
     install_local_checks_bakery_script
     install_local_reboot_required
     check_java_warning_for_checkmk
+    check_caddy_info_for_checkmk
     plugin_menu
     if [[ " ${SELECTED_PLUGINS[*]} " == *" mk_mysql "* ]]; then
         if whiptail --title "MySQL Plugin" --yesno "Would you like to configure the MySQL plugin now?" 10 60; then
@@ -2442,9 +2460,23 @@ EOF
 install_local_check_file() {
     local check="$1"
     local url="$2"
-    local local_file="$LOCAL_CHECKS_DIR/$check"
+    local local_dir="$LOCAL_CHECKS_DIR"
+    local local_file="${local_dir}/${check}"
 
-    mkdir -p "$LOCAL_CHECKS_DIR"
+    # special handling for check_borg_backup: only every 1800 seconds
+    if [ "$check" = "check_borg_backup" ]; then
+        local_dir="${LOCAL_CHECKS_DIR}/1800"
+        mkdir -p "$local_dir"
+
+        # if script exists in base folder, move to subfolder
+        if [ -f "${LOCAL_CHECKS_DIR}/${check}" ]; then
+            mv "${LOCAL_CHECKS_DIR}/${check}" "${local_dir}/${check}"
+        fi
+
+        local_file="${local_dir}/${check}"
+    fi
+
+    mkdir -p "$local_dir"
 
     if curl -fsSL "$url" -o "$local_file"; then
         sed -i 's/\r$//' "$local_file"  # Remove Windows carriage returns if any
@@ -2549,6 +2581,89 @@ is_checkmk_active() {
 }
 
 ############################################################
+# === 6.2 Caddy metrics ===
+############################################################
+# - Ensures that a global Caddy block containing "metrics" exists
+# - If the first non-empty line starts with "{", the function treats this
+#   as a global block and injects "metrics" before the closing "}" if missing
+# - If no global block is present at the top, a new one containing "metrics"
+#   is prepended to the file
+# - Finally, it reloads the Caddy service or configuration so changes take effect
+configure_caddy_metrics_block() {
+    local CADDYFILE="/etc/caddy/Caddyfile"  # Adjust path if needed
+
+    # Ensure Caddyfile exists
+    if [[ ! -f "$CADDYFILE" ]]; then
+        show_error_box "Caddyfile ($CADDYFILE) not found."
+        return 1
+    fi
+
+    # Determine the first non-empty line number
+    local first_nonempty
+    first_nonempty=$(grep -n '^[^[:space:]]' "$CADDYFILE" | head -n1 | cut -d: -f1)
+
+    if [[ -z "$first_nonempty" ]]; then
+        # File is empty, create a new global block with metrics
+        {
+            echo "{"
+            echo "  metrics"
+            echo "}"
+        } > "$CADDYFILE"
+    else
+        # Read the content of the first non-empty line
+        local first_line
+        first_line=$(sed -n "${first_nonempty}p" "$CADDYFILE")
+
+        if [[ "$first_line" =~ ^[[:space:]]*{ ]]; then
+            # A global block already exists at the top
+
+            # Check if "metrics" is already present anywhere in the file
+            if grep -q '^[[:space:]]*metrics[[:space:]]*$' "$CADDYFILE"; then
+                :
+            else
+                # Insert "metrics" before the closing brace of the first block
+                awk '
+                    BEGIN { block_started=0 }
+                    {
+                        if (block_started == 0 && $0 ~ /^[[:space:]]*{/ ) {
+                            block_started=1
+                        }
+                        if (block_started == 1 && $0 ~ /^[[:space:]]*}/ ) {
+                            print "  metrics"
+                            block_started=2
+                        }
+                        print
+                    }
+                ' "$CADDYFILE" > "${CADDYFILE}.tmp" && mv "${CADDYFILE}.tmp" "$CADDYFILE"
+            fi
+        else
+            # No global block at the top, prepend one with metrics
+            local tmp
+            tmp="$(mktemp)"
+
+            {
+                echo "{"
+                echo "  metrics"
+                echo "}"
+                echo
+                cat "$CADDYFILE"
+            } > "$tmp"
+
+            mv "$tmp" "$CADDYFILE"
+        fi
+    fi
+
+    # Reload Caddy so configuration changes take effect
+    if command -v systemctl >/dev/null 2>&1; then
+        # Try to reload the systemd service, fall back to restart on failure
+        systemctl reload caddy 2>/dev/null || systemctl restart caddy
+    else
+        # Fallback if systemd is not available, use caddy CLI reload
+        caddy reload --config "$CADDYFILE"
+    fi
+}
+
+############################################################
 # === 7. Registration and agent management for cloud sites ===
 ############################################################
 
@@ -2582,6 +2697,7 @@ register_agent_cloud() {
     [ $? -ne 0 ] && abort_script
 
     check_java_warning_for_checkmk
+    check_caddy_info_for_checkmk
     install_agent_with_progress
 
     # Prompt to create and activate host in Checkmk site
@@ -2617,6 +2733,15 @@ register_agent_cloud() {
 check_java_warning_for_checkmk() {
     if pgrep -x java &>/dev/null; then
         show_warning_box "Warning: A Java process is running on this host. Please make sure to check 'Java Process' in the host configuration in Checkmk."
+    fi
+}
+
+# Function: Warn user if a Caddy webserver is detected on the host
+# - Checks for a running Caddy process or available caddy binary
+# - Shows an informational dialog to remind the user to select the Caddy local check
+check_caddy_info_for_checkmk() {
+    if command -v caddy >/dev/null 2>&1 || pgrep -x caddy >/dev/null 2>&1; then
+        show_info_box "A Caddy webserver is running on this system.\n\nPlease make sure to select the \"caddy_metrics.py\" local check if you want to monitor Caddy metrics."
     fi
 }
 
