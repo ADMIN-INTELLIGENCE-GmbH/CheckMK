@@ -334,6 +334,12 @@ show_info_box() {
     whiptail --title "Information" --msgbox "$1" 8 60
 }
 
+show_info_box_xl() {
+    log "INFO: $1"
+    export NEWT_COLORS="$NEWT_COLORS_STANDARD"
+    whiptail --title "Information" --msgbox "$1" 15 60
+}
+
 # Function: Presents a menu for the user to choose a monitoring site
 # - Builds the options list from configured cloud and raw sites
 # - Shows an error and exits if no sites are found
@@ -2741,7 +2747,7 @@ check_java_warning_for_checkmk() {
 # - Shows an informational dialog to remind the user to select the Caddy local check
 check_caddy_info_for_checkmk() {
     if command -v caddy >/dev/null 2>&1 || pgrep -x caddy >/dev/null 2>&1; then
-        show_info_box "A Caddy webserver is running on this system.\n\nPlease make sure to select the \"caddy_metrics.py\" local check if you want to monitor Caddy metrics."
+        show_info_box_xl "A Caddy webserver is running on this system.\n\nPlease make sure to select the \"caddy_metrics.py\" local check if you want to monitor Caddy metrics."
     fi
 }
 
