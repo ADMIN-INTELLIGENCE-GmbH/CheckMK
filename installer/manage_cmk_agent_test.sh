@@ -2589,12 +2589,16 @@ is_checkmk_active() {
 ############################################################
 # === 6.2 Caddy metrics ===
 ############################################################
-# - Ensures that a global Caddy block containing "metrics" exists
-# - If the first non-empty line starts with "{", the function treats this
-#   as a global block and injects "metrics" before the closing "}" if missing
-# - If no global block is present at the top, a new one containing "metrics"
-#   is prepended to the file
-# - Finally, it reloads the Caddy service or configuration so changes take effect
+############################################################
+# - Detects the installed Caddy version
+# - For Caddy < 2.6, ensures a simple global block containing "metrics" exists
+# - For Caddy >= 2.6, ensures a global block with "servers { metrics }" exists
+# - If a global block already exists at the top, injects the corresponding
+#   metrics line(s) instead of creating a second block
+# - Formats the Caddyfile using "caddy fmt --overwrite"
+# - Finally, reloads (or restarts) the Caddy service so changes take effect
+# - On success, it shows a success dialog to the user
+############################################################
 configure_caddy_metrics_block() {
     local CADDYFILE="/etc/caddy/Caddyfile"  # Adjust path if needed
 
@@ -2604,17 +2608,49 @@ configure_caddy_metrics_block() {
         return 1
     fi
 
+    # Determine Caddy version (only major.minor part is relevant)
+    local caddy_version_full
+    local caddy_version_major_minor
+    if command -v caddy >/dev/null 2>&1; then
+        caddy_version_full=$(caddy version 2>/dev/null | awk '{print $1}')
+        # Expecting something like v2.6.2 or 2.6.2
+        caddy_version_major_minor=$(echo "$caddy_version_full" | sed -E 's/^v?([0-9]+\.[0-9]+).*/\1/')
+    else
+        show_error_box "Caddy binary not found. Cannot determine Caddy version."
+        return 1
+    fi
+
+    # Helper: compare if version is >= 2.6
+    local use_servers_block=0
+    if [[ "$caddy_version_major_minor" != "" ]]; then
+        local major=${caddy_version_major_minor%%.*}
+        local minor=${caddy_version_major_minor##*.}
+        if (( major > 2 )) || (( major == 2 && minor >= 6 )); then
+            use_servers_block=1
+        fi
+    fi
+
     # Determine the first non-empty line number
     local first_nonempty
     first_nonempty=$(grep -n '^[^[:space:]]' "$CADDYFILE" | head -n1 | cut -d: -f1)
 
     if [[ -z "$first_nonempty" ]]; then
-        # File is empty, create a new global block with metrics
-        {
-            echo "{"
-            echo "  metrics"
-            echo "}"
-        } > "$CADDYFILE"
+        # File is empty, create a new global block depending on version
+        if [[ $use_servers_block -eq 1 ]]; then
+            {
+                echo "{"
+                echo "    servers {"
+                echo "        metrics"
+                echo "    }"
+                echo "}"
+            } > "$CADDYFILE"
+        else
+            {
+                echo "{"
+                echo "    metrics"
+                echo "}"
+            } > "$CADDYFILE"
+        fi
     else
         # Read the content of the first non-empty line
         local first_line
@@ -2623,40 +2659,99 @@ configure_caddy_metrics_block() {
         if [[ "$first_line" =~ ^[[:space:]]*{ ]]; then
             # A global block already exists at the top
 
-            # Check if "metrics" is already present anywhere in the file
-            if grep -q '^[[:space:]]*metrics[[:space:]]*$' "$CADDYFILE"; then
-                :
+            if [[ $use_servers_block -eq 1 ]]; then
+                # For >= 2.6: ensure servers { metrics } exists in the global block
+
+                # If a servers block with metrics already exists, do nothing
+                if awk '
+                    BEGIN { in_global=0; in_servers=0; have_metrics=0 }
+                    /^[[:space:]]*{/ && in_global==0 { in_global=1; next }
+                    /^[[:space:]]*}/ && in_global==1 { in_global=0; next }
+                    in_global==1 && $0 ~ /^[[:space:]]*servers[[:space:]]*{/ { in_servers=1; next }
+                    in_servers==1 && $0 ~ /^[[:space:]]*metrics[[:space:]]*$/ { have_metrics=1 }
+                    in_servers==1 && $0 ~ /^[[:space:]]*}/ { in_servers=0 }
+                    END { if (have_metrics==1) exit 0; else exit 1 }
+                ' "$CADDYFILE"; then
+                    :
+                else
+                    # Inject servers { metrics } into the existing global block
+                    awk '
+                        BEGIN { in_global=0; injected=0 }
+                        /^[[:space:]]*{/ && in_global==0 {
+                            in_global=1
+                            print
+                            next
+                        }
+                        /^[[:space:]]*}/ && in_global==1 {
+                            if (injected==0) {
+                                print "    servers {"
+                                print "        metrics"
+                                print "    }"
+                                injected=1
+                            }
+                            in_global=0
+                            print
+                            next
+                        }
+                        {
+                            print
+                        }
+                    ' "$CADDYFILE" > "${CADDYFILE}.tmp" && mv "${CADDYFILE}.tmp" "$CADDYFILE"
+                fi
             else
-                # Insert "metrics" before the closing brace of the first block
-                awk '
-                    BEGIN { block_started=0 }
-                    {
-                        if (block_started == 0 && $0 ~ /^[[:space:]]*{/ ) {
-                            block_started=1
+                # For < 2.6: ensure a simple "metrics" line exists in global block
+
+                if grep -q '^[[:space:]]*metrics[[:space:]]*$' "$CADDYFILE"; then
+                    :
+                else
+                    # Insert "metrics" before the closing brace of the first block
+                    awk '
+                        BEGIN { block_started=0 }
+                        {
+                            if (block_started == 0 && $0 ~ /^[[:space:]]*{/ ) {
+                                block_started=1
+                            }
+                            if (block_started == 1 && $0 ~ /^[[:space:]]*}/ ) {
+                                print "    metrics"
+                                block_started=2
+                            }
+                            print
                         }
-                        if (block_started == 1 && $0 ~ /^[[:space:]]*}/ ) {
-                            print "  metrics"
-                            block_started=2
-                        }
-                        print
-                    }
-                ' "$CADDYFILE" > "${CADDYFILE}.tmp" && mv "${CADDYFILE}.tmp" "$CADDYFILE"
+                    ' "$CADDYFILE" > "${CADDYFILE}.tmp" && mv "${CADDYFILE}.tmp" "$CADDYFILE"
+                fi
             fi
         else
-            # No global block at the top, prepend one with metrics
+            # No global block at the top, prepend one depending on version
             local tmp
             tmp="$(mktemp)"
 
-            {
-                echo "{"
-                echo "  metrics"
-                echo "}"
-                echo
-                cat "$CADDYFILE"
-            } > "$tmp"
+            if [[ $use_servers_block -eq 1 ]]; then
+                {
+                    echo "{"
+                    echo "    servers {"
+                    echo "        metrics"
+                    echo "    }"
+                    echo "}"
+                    echo
+                    cat "$CADDYFILE"
+                } > "$tmp"
+            else
+                {
+                    echo "{"
+                    echo "    metrics"
+                    echo "}"
+                    echo
+                    cat "$CADDYFILE"
+                } > "$tmp"
+            fi
 
             mv "$tmp" "$CADDYFILE"
         fi
+    fi
+
+    # Format the Caddyfile for consistent style
+    if ! caddy fmt --overwrite "$CADDYFILE"; then
+        show_warning_box "Caddyfile was updated, but 'caddy fmt --overwrite \"$CADDYFILE\"' failed.\nCaddy may still work, but formatting might be inconsistent."
     fi
 
     # Reload Caddy so configuration changes take effect
@@ -2677,7 +2772,7 @@ configure_caddy_metrics_block() {
     fi
 
     # Show success dialog when everything completed successfully
-    show_success_box "Caddy configuration was successfully updated.\n\nThe global metrics block is now active, and Caddy has been reloaded."
+    show_success_box "Caddy configuration was successfully updated.\n\nThe global metrics block is now active, the Caddyfile has been formatted, and Caddy has been reloaded."
 }
 
 ############################################################
