@@ -2768,8 +2768,8 @@ configure_caddy_metrics_block() {
     # Reload Caddy so configuration changes take effect
     if command -v systemctl >/dev/null 2>&1; then
         # Try to reload the systemd service, fall back to restart on failure
-        if ! systemctl reload caddy 2>/dev/null; then
-            if ! systemctl restart caddy 2>/dev/null; then
+        if ! systemctl reload caddy.service 2>/dev/null; then
+            if ! systemctl restart caddy.service 2>/dev/null; then
                 show_error_box "Caddyfile updated, but reloading the Caddy service failed."
                 return 1
             fi
