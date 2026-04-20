@@ -2499,10 +2499,16 @@ install_local_check_file() {
 # - Removes the file and logs the removal
 remove_local_check_file() {
     local check="$1"
-    if [[ -f "$LOCAL_CHECKS_DIR/$check" ]]; then
-        rm -f "$LOCAL_CHECKS_DIR/$check"
-        # show_success_box "Local check removed: $check"
-        log "[INFO] Local check removed: $check"
+    local removed=0
+
+    while IFS= read -r -d '' f; do
+        rm -f "$f"
+        removed=1
+    done < <(find "$LOCAL_CHECKS_DIR" -type f -name "$check" -print0)
+    find "$LOCAL_CHECKS_DIR" -mindepth 1 -type d -empty -delete
+
+    if [ "$removed" -eq 1 ]; then
+        log INFO "Local check removed $check"
     fi
 }
 

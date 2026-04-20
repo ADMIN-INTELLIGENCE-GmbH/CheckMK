@@ -2,7 +2,8 @@
 
 ## v2.1.4 - 2026-04-20
 
-\* Fix local checks detection for subdirectories.
+*   Fix local checks detection for subdirectories
+*   Fix removal of local checks stored in subdirectories.
 
 ## v2.1.3 - 2026-02-17
 
