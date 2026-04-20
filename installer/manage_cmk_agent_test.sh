@@ -25,8 +25,8 @@
 ############################################################
 # Author: Sascha Jelinek
 # Company: ADMIN INTELLIGENCE GmbH
-# Date: 2026-02-16
-# Version: 2.1.2
+# Date: 2026-02-17
+# Version: 2.1.3
 # Web: www.admin-intelligence.de
 ############################################################
 # Table of contents
@@ -645,14 +645,12 @@ install_local_checks_menu() {
     # Discover which local checks are already installed
     local installed_local_checks=()
     if [[ -d "$LOCAL_CHECKS_DIR" ]]; then
-        for f in "$LOCAL_CHECKS_DIR"/*; do
-            [[ -f "$f" ]] || continue
-            # ignore JSON files
-            if [[ "$(basename "$f")" == *.json ]]; then
-                continue
-            fi
-            installed_local_checks+=("$(basename "$f")")
-        done
+        while IFS= read -r -d '' f; do
+            local base
+            base="$(basename "$f")"
+            [[ "$base" == *.json ]] && continue
+            installed_local_checks+=("$base")
+        done < <(find "$LOCAL_CHECKS_DIR" -type f -print0)
     fi
 
     # Build checklist items: local check filename, description, and ON/OFF status
