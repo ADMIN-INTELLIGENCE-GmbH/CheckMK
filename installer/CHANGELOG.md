@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.1.4 - 2026-04-20
+
+\* Fix local checks detection for subdirectories.
+
 ## v2.1.3 - 2026-02-17
 
 *   added caddy local check installation and configuration
