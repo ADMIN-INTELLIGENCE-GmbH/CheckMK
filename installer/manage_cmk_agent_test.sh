@@ -25,8 +25,8 @@
 ############################################################
 # Author: Sascha Jelinek
 # Company: ADMIN INTELLIGENCE GmbH
-# Date: 2026-02-17
-# Version: 2.1.3
+# Date: 2026-04-20
+# Version: 2.1.4
 # Web: www.admin-intelligence.de
 ############################################################
 # Table of contents
@@ -48,7 +48,7 @@
 # - 8. Main functions and logic
 ############################################################
 
-HEADER="\nADMIN INTELLIGENCE GmbH | v2.1.1 | Sascha Jelinek | 2026-01-27"
+HEADER="\nADMIN INTELLIGENCE GmbH | v2.1.4 | Sascha Jelinek | 2026-04-20"
 
 ############################################################
 # === 1. Global configuration variables ===
@@ -2499,10 +2499,16 @@ install_local_check_file() {
 # - Removes the file and logs the removal
 remove_local_check_file() {
     local check="$1"
-    if [[ -f "$LOCAL_CHECKS_DIR/$check" ]]; then
-        rm -f "$LOCAL_CHECKS_DIR/$check"
-        # show_success_box "Local check removed: $check"
-        log "[INFO] Local check removed: $check"
+    local removed=0
+
+    while IFS= read -r -d '' f; do
+        rm -f "$f"
+        removed=1
+    done < <(find "$LOCAL_CHECKS_DIR" -type f -name "$check" -print0)
+    find "$LOCAL_CHECKS_DIR" -mindepth 1 -type d -empty -delete
+
+    if [ "$removed" -eq 1 ]; then
+        log INFO "Local check removed $check"
     fi
 }
 
