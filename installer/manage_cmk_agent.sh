@@ -615,6 +615,8 @@ install_local_checks_menu() {
         ["reboot_required"]="https://raw.githubusercontent.com/ADMIN-INTELLIGENCE-GmbH/CheckMK/refs/heads/main/local_checks/reboot_required/reboot_required"
         ["pve_monitored_guests"]="https://raw.githubusercontent.com/ADMIN-INTELLIGENCE-GmbH/CheckMK/refs/heads/main/local_checks/pve_discovery/pve_monitored_guests"
         ["caddy_metrics.py"]="https://raw.githubusercontent.com/ADMIN-INTELLIGENCE-GmbH/CheckMK/refs/heads/main/local_checks/caddy/caddy_metrics.py"
+        ["CVE-2026-31431.sh"]="https://raw.githubusercontent.com/ADMIN-INTELLIGENCE-GmbH/CheckMK/refs/heads/main/local_checks/CVE_checks/CVE_2026_31431.sh"
+        ["CVE-2026-23918.sh"]="https://raw.githubusercontent.com/ADMIN-INTELLIGENCE-GmbH/CheckMK/refs/heads/main/local_checks/CVE_checks/CVE_2026_23918.sh"
     )
     # Add caddy check ist caddy is running
     if [[ $is_caddy -eq 1 ]]; then
@@ -632,6 +634,8 @@ install_local_checks_menu() {
         ["check_sql_dump"]="| SQL-Dump check"
         ["reboot_required"]="| Reboot required"
         ["pve_monitored_guests"]="| PVE monitored guests"
+        ["CVE-2026-31431.sh"]="| CVE-2026-31431 - Copy Fail"
+        ["CVE-2026-23918.sh"]="| CVE-2026-23918 - Apache2 HTTP/2 Flow"
     )
     if [[ $is_caddy -eq 1 ]]; then
         DESCRIPTIONS["caddy_metrics.py"]="| Caddy metrics monitoring"
