@@ -25,8 +25,8 @@
 ############################################################
 
 # --- KONFIGURATION ---
-API_URL="https://cmk-bakery.admin-intelligence.de/api/checkin"
-GLOBAL_SETUP_KEY="4fu84eazb859mevaz85e9aazhnb895jghva588s89y6zCHAFWEDzn8toewqazhnrtf"
+API_URL="https://[your_domain]/api/checkin"
+GLOBAL_SETUP_KEY="..."
 KEY_FILE="/etc/check_mk_bakery.key"
 AGENT_LOCAL="/usr/lib/check_mk_agent/local"
 # ---------------------
