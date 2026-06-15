@@ -1305,8 +1305,11 @@ check_and_ask_mandatory_fields() {
 # - Downloads agent package via wget
 # - Installs package using dpkg -i, aborts on error
 download_and_install() {
-    SITE_AGENT_PACKAGE="check-mk-agent_2.5.0p6-1_all.deb"
-    SITE_AGENT_URL="https://github.com/ADMIN-INTELLIGENCE-GmbH/CheckMK/raw/main/programs/"
+    # RAW-Failsafe nur wenn nichts vorbelegt wurde
+    if [[ "$INSTALL_MODE" == "raw" ]]; then
+        [[ -z "${SITE_AGENT_URL:-}" ]] && SITE_AGENT_URL="https://github.com/ADMIN-INTELLIGENCE-GmbH/CheckMK/raw/main/programs/"
+        [[ -z "${SITE_AGENT_PACKAGE:-}" ]] && SITE_AGENT_PACKAGE="check-mk-agent_2.5.0p6-1_all.deb"
+    fi
     case "$1" in
     download)
         wget --no-check-certificate "${SITE_AGENT_URL}${SITE_AGENT_PACKAGE}" -O "$SITE_AGENT_PACKAGE" || {
