@@ -25,8 +25,8 @@
 ############################################################
 # Author: Sascha Jelinek
 # Company: ADMIN INTELLIGENCE GmbH
-# Date: 2026-04-20
-# Version: 2.1.4
+# Date: 2026-06-15
+# Version: 2.1.5
 # Web: www.admin-intelligence.de
 ############################################################
 # Table of contents
@@ -48,7 +48,7 @@
 # - 8. Main functions and logic
 ############################################################
 
-HEADER="\nADMIN INTELLIGENCE GmbH | v2.1.4 | Sascha Jelinek | 2026-04-20"
+HEADER="\nADMIN INTELLIGENCE GmbH | v2.1.5 | Sascha Jelinek | 2026-06-15"
 
 ############################################################
 # === 1. Global configuration variables ===
@@ -69,7 +69,7 @@ declare -A SITE_CLOUD_LIST
 # SITE_CLOUD_LIST["site_1_updateuserpass"]=""
 # SITE_CLOUD_LIST["site_1_update_protocol"]=""
 # SITE_CLOUD_LIST["site_1_agent_package"]=""
-# SITE_CLOUD_LIST["site_1_agent_version"]="2.4.*" #mandatory
+# SITE_CLOUD_LIST["site_1_agent_version"]="2.5.*" #mandatory
 
 declare -A SITE_RAW_LIST
 # SITE_RAW_LIST["site_1_url"]=""
@@ -77,7 +77,7 @@ declare -A SITE_RAW_LIST
 # SITE_RAW_LIST["site_1_name"]="" #mandatory
 # SITE_RAW_LIST["site_1_text"]=""
 # SITE_RAW_LIST["site_1_agent_package"]=""
-# SITE_RAW_LIST["site_1_agent_version"]="2.4.*" #mandatory
+# SITE_RAW_LIST["site_1_agent_version"]="2.5.*" #mandatory
 
 # Other global parameters
 PYTHON_DOCKER_PACKAGE="python3-docker"  # Package name required for Python Docker integration
@@ -1305,7 +1305,7 @@ check_and_ask_mandatory_fields() {
 # - Downloads agent package via wget
 # - Installs package using dpkg -i, aborts on error
 download_and_install() {
-    SITE_AGENT_PACKAGE="check-mk-agent_2.4.0p5-1_all.deb"
+    SITE_AGENT_PACKAGE="check-mk-agent_2.5.0p6-1_all.deb"
     SITE_AGENT_URL="https://github.com/ADMIN-INTELLIGENCE-GmbH/CheckMK/raw/main/programs/"
     case "$1" in
     download)
