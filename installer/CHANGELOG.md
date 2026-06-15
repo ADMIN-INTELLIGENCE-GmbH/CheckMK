@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.1.5 - 2026-06-15
+
+*   added new agent version 2.5.0p6
+
 ## v2.1.4 - 2026-04-20
 
 *   Fix local checks detection for subdirectories
