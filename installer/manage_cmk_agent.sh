@@ -1312,7 +1312,7 @@ download_and_install() {
     fi
     case "$1" in
     download)
-        wget --no-check-certificate "${SITE_AGENT_URL}${SITE_AGENT_PACKAGE}" -O "$SITE_AGENT_PACKAGE" || {
+        wget -q --inet4-only --timeout=15 --tries=3 --no-check-certificate "${SITE_AGENT_URL}${SITE_AGENT_PACKAGE}" -O "$SITE_AGENT_PACKAGE" || {
             show_error_box "Error during download! Script will exit."
             abort_script
         }
